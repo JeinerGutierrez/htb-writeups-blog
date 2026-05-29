@@ -2,23 +2,60 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>HTB - GoodGames | Write-up</title>
+  <title>GoodGames HTB - Writeup</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="../styles.css" />
 </head>
 <body>
-  <main class="page">
-    <section class="panel writeups-panel">
-      <header class="writeups-header">
-        <h2>HTB - GoodGames (User & Root)</h2>
-        <span class="tag">HTB · Linux · Web</span>
+  <div class="post-layout">
+    <!-- SIDEBAR -->
+    <aside class="post-sidebar">
+      <div class="sidebar-avatar">
+        <img src="../img/avatar.png" alt="Tu avatar" />
+      </div>
+      <h2 class="sidebar-name">TU ALIAS</h2>
+      <p class="sidebar-role">Pentester · HTB Player</p>
+
+      <ul class="sidebar-list">
+        <li>HTB</li>
+        <li>Web · Linux</li>
+        <li>GoodGames</li>
+      </ul>
+
+      <ul class="sidebar-links">
+        <li><a href="https://hackthebox.com">HTB</a></li>
+        <li><a href="https://twitter.com">Twitter</a></li>
+        <li><a href="https://github.com">GitHub</a></li>
+      </ul>
+    </aside>
+
+    <!-- CONTENIDO DEL WRITEUP -->
+    <main class="post-main">
+      <header class="post-header">
+        <p class="post-breadcrumb">Home / GoodGames HTB - Writeup</p>
+        <h1 class="post-title">GoodGames HTB - Writeup</h1>
+        <p class="post-date">May 29, 2026 · Linux · Medium</p>
       </header>
 
-      <article class="post-body">
-        <h3>1. Recon</h3>
-        <p>Aquí irán tus notas de recon.</p>
-      </article>
-    </section>
-  </main>
+      <section class="post-section">
+        <h2>Índice</h2>
+        <ol class="post-index">
+          <li>Enumeración inicial</li>
+          <li>Web enumeration</li>
+          <li>Exploiting SQLi</li>
+          <li>Subdomain enumeration</li>
+          <li>Exploiting SSTI</li>
+          <li>Docker escape</li>
+          <li>Privesc to root</li>
+        </ol>
+      </section>
+
+      <section class="post-section">
+        <h2>1. Enumeración inicial</h2>
+        <p>Lo primero será un escaneo completo de puertos con nmap:</p>
+        <pre><code>nmap -sCV -p- 10.10.11.130</code></pre>
+      </section>
+    </main>
+  </div>
 </body>
 </html>
