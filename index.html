@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tu Handle | Cybersec Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-overlay"></div>
+
+  <main class="container">
+    <!-- TARJETA PERFIL -->
+    <section class="card profile-card">
+      <div class="profile-left">
+        <div class="avatar">
+          <!-- pon tu imagen en /img/avatar.jpg -->
+          <img src="img/avatar.png" alt="Avatar" />
+        </div>
+      </div>
+
+      <div class="profile-right">
+        <div class="profile-header">
+          <h1 class="handle">ZerasedZ</h1>
+          <span class="status-pill">online</span>
+        </div>
+        <p class="subtitle">Cybersecurity Engineering Student · Offensive Security</p>
+        <p class="meta">Write‑ups · Labs · Notes · Cheatsheets</p>
+
+        <div class="social-row">
+          <a href="https://linkedin.com" target="_blank" class="social-link">in</a>
+          <a href="https://instagram.com" target="_blank" class="social-link">ig</a>
+          <a href="https://steamcommunity.com" target="_blank" class="social-link">st</a>
+          <a href="https://github.com" target="_blank" class="social-link">gh</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- LISTA DE WRITE-UPS -->
+    <section class="card posts-card">
+      <header class="posts-header">
+        <h2>Write‑ups</h2>
+        <span class="badge">HTB · Labs · Reto</span>
+      </header>
+      <p class="posts-description">
+        Últimas máquinas y retos. Cada tarjeta apunta a tu write‑up completo.
+      </p>
+
+      <div id="posts-list" class="posts-list">
+        <!-- JS inyecta aquí las tarjetas -->
+      </div>
+    </section>
+  </main>
+
+  <script src="posts.js"></script>
+</body>
+</html>
