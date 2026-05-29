@@ -13,7 +13,14 @@ const posts = [
       category: "HTB · Web",
       tags: ["php", "sqli", "privesc"],
       url: "https://tusitio.com/writeups/htb-academy"
-    }
+    },
+    {
+      title: "HTB - GoodGames (User & Root)",
+      date: "2026-05-29",
+      category: "HTB · Linux · Web",
+      tags: ["nmap", "web", "privesc"],
+      url: "https://htb-writeups-blog.vercel.app/writeups/goodgames.html"
+    },
   ];
   
   function renderPosts() {
