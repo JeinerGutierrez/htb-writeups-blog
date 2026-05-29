@@ -19,7 +19,7 @@ const posts = [
       date: "2026-05-29",
       category: "HTB · Linux · Web",
       tags: ["nmap", "web", "privesc"],
-      url: "https://htb-writeups-blog.vercel.app/writeups/goodgames.html"
+      url: "https://zerasedz-writeups-htb.vercel.app/writeups/goodgames.html"
     },
   ];
   
