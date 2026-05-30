@@ -2,54 +2,52 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Tu Handle | Cybersec Lab</title>
+  <title>ZerasedZ | HTB Writeups</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2" />
 </head>
 <body>
-  <div class="bg-overlay"></div>
-
-  <main class="container">
-    <!-- TARJETA PERFIL -->
-    <section class="card profile-card">
-      <div class="profile-left">
-        <div class="avatar">
-          <!-- pon tu imagen en /img/avatar.jpg -->
-          <img src="img/avatar.png" alt="Avatar" />
-        </div>
+  <main class="page">
+    
+    <aside class="profile-panel panel">
+      <div class="profile-photo">
+        <img src="img/avatar.png" alt="Avatar de ZerasedZ" />
       </div>
 
-      <div class="profile-right">
-        <div class="profile-header">
-          <h1 class="handle">ZerasedZ</h1>
-          <span class="status-pill">online</span>
-        </div>
-        <p class="subtitle">Cybersecurity Engineering Student · Offensive Security</p>
-        <p class="meta">Write‑ups · Labs · Notes · Cheatsheets</p>
+      <div class="profile-info">
+        <h1 class="profile-name">ZerasedZ</h1>
+        <p class="profile-role">Cybersecurity Engineering Student · Offensive Security</p>
+        <p class="profile-text">
+          Write-ups, Labs, Notes y Cheatsheets de mi camino en ciberseguridad.
+        </p>
 
-        <div class="social-row">
-          <a href="https://linkedin.com" target="_blank" class="social-link">in</a>
-          <a href="https://instagram.com" target="_blank" class="social-link">ig</a>
-          <a href="https://steamcommunity.com" target="_blank" class="social-link">st</a>
-          <a href="https://github.com" target="_blank" class="social-link">gh</a>
+        <div class="profile-meta">
+          <span>HTB</span>
+          <span>Web</span>
+          <span>Linux</span>
+        </div>
+
+        <div class="profile-links">
+          <a href="https://github.com/JeinerGutierrez" target="_blank">GitHub</a>
+          <a href="https://twitter.com" target="_blank">Twitter</a>
+          <a href="https://profile.hackthebox.com/profile/019d4be4-ec1e-706b-9196-b4be2dab6db5" target="_blank">HTB</a>
         </div>
       </div>
-    </section>
+    </aside>
 
-    <!-- LISTA DE WRITE-UPS -->
-    <section class="card posts-card">
-      <header class="posts-header">
-        <h2>Write‑ups</h2>
-        <span class="badge">HTB · Labs · Reto</span>
+    <section class="writeups-panel panel">
+      <header class="writeups-header">
+        <h2>Writeups</h2>
+        <span class="tag">Últimos</span>
       </header>
-      <p class="posts-description">
-        Últimas máquinas y retos. Cada tarjeta apunta a tu write‑up completo.
+      <p class="writeups-subtitle">
+        Últimas máquinas y retos resueltos.
       </p>
 
-      <div id="posts-list" class="posts-list">
-        <!-- JS inyecta aquí las tarjetas -->
-      </div>
+      <div id="posts-list" class="writeups-list">
+        </div>
     </section>
+    
   </main>
 
   <script src="posts.js"></script>

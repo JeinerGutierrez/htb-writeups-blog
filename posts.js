@@ -1,19 +1,19 @@
-// Aquí defines tus write-ups; luego puedes mover esto a un JSON aparte.
+
 const posts = [
-    {
+    /*{
       title: "HTB - Lame (Root)",
       date: "2026-05-20",
       category: "HTB · Linux",
       tags: ["nmap", "smb", "exploit-db"],
-      url: "https://tusitio.com/writeups/htb-lame"
+      url: ""
     },
     {
       title: "HTB - Academy (User & Root)",
       date: "2026-05-15",
       category: "HTB · Web",
       tags: ["php", "sqli", "privesc"],
-      url: "https://tusitio.com/writeups/htb-academy"
-    },
+      url: ""
+    },*/
     {
       title: "HTB - GoodGames (User & Root)",
       date: "2026-05-29",
