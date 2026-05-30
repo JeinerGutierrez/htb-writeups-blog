@@ -369,15 +369,58 @@ html, body {
 }
 
 @media (max-width: 800px) {
+  /* 1. Cambiamos a columna vertical */
   .post-layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
   }
 
+  /* 2. Quitamos el fondo negro y centramos el panel */
   .post-sidebar {
+    position: relative;
+    height: auto;
+    padding: 2rem 1.5rem 1.5rem;
+    background: transparent; /* <- Esto quita la caja negra */
     border-right: none;
-    border-bottom: 1px solid #202020;
+    border-bottom: 1px solid #202020; /* Una sutil línea divisoria */
+    
+    /* Usamos Flexbox para centrar todo perfectamente */
     display: flex;
+    flex-direction: column;
     align-items: center;
+    text-align: center;
+  }
+
+  /* 3. Ajustamos el tamaño de la foto para móvil y la centramos */
+  .sidebar-avatar {
+    width: 90px;
+    height: 90px;
+    margin: 0 0 1rem 0; /* Espacio debajo de la foto */
+  }
+
+  /* 4. Textos centrados */
+  .sidebar-name {
+    font-size: 1.4rem;
+  }
+
+  .sidebar-role {
+    margin: 0.2rem 0 1rem 0;
+    font-size: 0.9rem;
+  }
+
+  /* 5. Ponemos los enlaces en línea horizontal y al centro */
+  .sidebar-list,
+  .sidebar-links {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center; /* Centra los enlaces */
     gap: 1rem;
+    margin: 0 0 0.5rem 0;
+  }
+
+  /* 6. Márgenes del post principal en móvil */
+  .post-main {
+    padding: 1.5rem 1.2rem;
   }
 }
