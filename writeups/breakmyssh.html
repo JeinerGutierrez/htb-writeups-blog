@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>GoodGames HTB - Writeup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="post-layout">
+    <aside class="post-sidebar">
+      <div class="sidebar-avatar">
+        <img src="../img/avatar.png" alt="Tu avatar" />
+      </div>
+      <h2 class="sidebar-name">ZerasedZ</h2>
+      <p class="sidebar-role">HTB Player</p>
+
+      <ul class="sidebar-list">
+        <li>HTB</li>
+        <li>Web · Linux</li>
+        <li></li>
+      </ul>
+
+      <ul class="sidebar-links">
+        <li><a href="https://profile.hackthebox.com/profile/019d4be4-ec1e-706b-9196-b4be2dab6db5">HTB</a></li>
+        <li><a href="https://twitter.com">Twitter</a></li>
+        <li><a href="https://github.com/JeinerGutierrez">GitHub</a></li>
+      </ul>
+    </aside>
+
+    <main class="post-main">
+      <header class="post-header">
+        <p class="post-breadcrumb">Home / BreakmySSH Docker - Writeup</p>
+        <h1 class="post-title">BreakmySSH Docker - Writeup</h1>
+        <p class="post-date">Jun 09, 2026 · Linux </p>
+      </header>
+
+
+      <section class="post-section">
+        <h2>El día de hoy vamos a resolver la maquina BreakmySSH de Docker. Es una maquina Linux </h2>
+        <img src="breakmyssh/img-maquina2.png" alt="Tu foto" />
+        <h2>1. Inicialización de la maquina</h2>
+        <p>Lo primero será descargar la maquina de Dockerlabs, una vez lo tengamos descargado lo movemos a una nueva carpeta y lo descomprimimos.</p>
+        <img src="breakmyssh/img-unzip.png" alt="Tu foto" />
+        <p>Luego corremos la maquina con el siguiente comando: </p>
+        <pre><code>sudo bash auto_deploy.sh breakmyssh.tar  </code></pre>
+        <img src="breakmyssh/img-bash1.png" alt="Tu foto" />
+        <h2>2. Enumeración inicial</h2>
+        <p>Lo primero será un escaneo de puertos usando la herramienta nmap:</p>
+        <pre><code>sudo nmap -p- -sV -sC  -T5 --min-rate 5000 -Pn 172.17.0.2</code></pre>
+        <img src="breakmyssh/img-nmap.png" alt="Tu foto" />
+        <p>Podemos ver que el puerto 22 (SSH) está abierto. </p>
+        <h2>3. investigación </h2>
+        <p>Como podemos ver el servicio que está corriendo es OpenSSH con la versión 7.7, investigaremos un poco sobre esta versión.</p>
+        <img src="breakmyssh/img-vulne.png" alt="Tu foto" />
+        <p>Tras la investigación podemos ver que hay una vulnerabilidad en la versión 7.7 (CVE-2018-15473), OpenSSH 7.7 es propenso a una vulnerabilidad de enumeración de usuarios. Usaremos esto como puerta de entrada. </p>
+        <p>Usaremos la herramienta de Metasploit para explotar esta vulnerabilidad. </p>
+        <h2>4. Explotación </h2>
+        <p>Usaremos los siguientes comandos: </p>
+        <pre><code>msfconsole</code></pre>
+        <p>* Esto sirve para iniciar Metasploit.</p>
+        <pre><code>search ssh enum</code></pre>
+        <p>* Esto sirve para buscar vulnerabilidades de enumeración.</p>
+        <pre><code>use 4 (Depende del número donde se encuentre "auxiliary/scanner/ssh/ssh_enumusers")</code></pre>
+        <p>* Esto sirve para seleccionar el modulo que vamos a usar para explotar la vulnerabilidad.</p>
+        <img src="breakmyssh/img-metas.png" alt="Tu foto" />
+        <p>Luego usaremos:</p>
+        <pre><code>show options  </code></pre>
+        <p>* Esto sirve para ver las configuraciones, así saber lo que tenemos que configurar.</p>
+        <p>Vemos que nos falta configurar la IP objetivo (RHOSTS) y la ruta del diccionario que se usará para probrar los usernames. (USER_FILE)</p>
+        <pre><code>set RHOSTS 172.17.0.2  </code></pre>
+        <p>* Esto sirve para asignar la IP objetivo a la cual vamos a vulnerar.</p>
+        <pre><code>set USER_FILE /usr/share/seclists/Usernames/xato-net-10-million-usernames-dup.txt  </code></pre>
+        <p>* Esto sirve para asignar la ruta del diccionario que usará.</p>
+        <img src="breakmyssh/img-show.png" alt="Tu foto" />
+        <pre><code>Finalmente volvemos escribir show options para ver los cambios que hicimos y escribimos: </code></pre>
+        <pre><code>run</code></pre>
+        <p>* Esto sirve para comenzar con la explotación.</p>
+        <img src="breakmyssh/img-run.png" alt="Tu foto" />
+        <h2>5. Acceso por SSH </h2>
+        <p>Teniendo la lista de usuarios podemos probar con uno de ellos, en este caso usaremos el usuario "root", como no tenemos la contraseña la podemos obtener usando fuerza bruta con herramientas como hydra o john the ripper.</p>
+        <p>Usaremos hydra con el siguiente comando:</p>
+        <pre><code>hydra -l root -P /usr/share/wordlists/rockyou.txt ssh://172.17.0.2</code></pre>
+        <img src="breakmyssh/img-hydra.png" alt="Tu foto" />
+        <p>Como vemos se logró conseguir la contraseña del usuario root, ahora podemos acceder por SSH.</p>
+        <img src="breakmyssh/img-sshgood.png" alt="Tu foto" />
+        <p>Finalmente se logró acceder por ssh.</p>
+
+        
+      </section>
+    </main>
+  </div>
+</body>
+</html>
