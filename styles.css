@@ -26,10 +26,6 @@ html, body {
   color: var(--text-main);
 }
 
-/* ==========================================
-   DISEÑO DEL INDEX (PÁGINA PRINCIPAL)
-========================================== */
-
 .page {
   width: 100%;
   max-width: 1200px;
@@ -229,10 +225,6 @@ html, body {
     padding: 2rem 1rem;
   }
 }
-
-/* ==========================================
-   DISEÑO DE LOS WRITEUPS (INTACTO)
-========================================== */
 
 .post-layout {
   min-height: 100vh;
