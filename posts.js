@@ -15,6 +15,14 @@ const posts = [
       url: ""
     },*/
     {
+      title: "HTB - Skyfall (User & Root)",
+      date: "2026-07-08",
+      category: "HTB · Linux · Web",
+      tags: ["ssrf", "minio", "vault", "privesc"],
+      url: "https://zerasedz-writeups-htb.vercel.app/writeups/skyfall.html"
+    },
+
+    {
       title: "HTB - GoodGames (User & Root)",
       date: "2026-05-29",
       category: "HTB · Linux · Web",
@@ -42,10 +50,12 @@ const posts = [
       a.rel = "noopener noreferrer";
       a.className = "post-card";
   
+      const tagsHtml = post.tags.map((t) => `<span>${t}</span>`).join("");
+
       a.innerHTML = `
         <div class="post-meta">${post.category} · ${post.date}</div>
         <h3 class="post-title">${post.title}</h3>
-        <div class="post-tags">${post.tags.join(" · ")}</div>
+        <div class="post-tags">${tagsHtml}</div>
       `;
   
       list.appendChild(a);
