@@ -1,13 +1,18 @@
 :root {
-  --bg: #050505;
-  --panel: #101010;
-  --panel-alt: #141414;
-  --accent: #e53935;
-  --accent-soft: #ff7043;
-  --text-main: #f5f5f5;
-  --text-muted: #a8a8a8;
-  --border: #262626;
-  --radius: 18px;
+  /* Flat dark surfaces, layered by elevation (no gradients) */
+  --bg: #0b0c0e;
+  --panel: #131418;
+  --panel-alt: #171920;
+  --elevate: #1c1f27;
+  --accent: #e5484d;
+  --accent-soft: #ff6b6b;
+  --accent-dim: rgba(229, 72, 77, 0.12);
+  --text-main: #f2f3f5;
+  --text-muted: #9aa1ac;
+  --border: #24272e;
+  --border-strong: #33373f;
+  --radius: 16px;
+  --radius-sm: 10px;
   --font-main: "IBM Plex Sans", system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -26,17 +31,20 @@ html {
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  min-height: 100%;
   font-family: var(--font-main);
-  background: radial-gradient(circle at top, #181818 0, #050505 55%, #000 100%);
+  background: var(--bg);
   color: var(--text-main);
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 h1, h2, h3 {
   font-family: var(--font-mono);
   letter-spacing: -0.02em;
   font-weight: 600;
+  text-wrap: balance;
 }
 
 a:focus-visible,
@@ -53,15 +61,17 @@ button:focus-visible {
   }
 }
 
+/* ============ HOME ============ */
+
 .page {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1160px;
   min-height: 100vh;
-  margin: 0 auto; 
-  padding: 3rem 1.5rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
   display: grid;
-  grid-template-columns: 320px 1fr; 
-  gap: 2.5rem;
+  grid-template-columns: 320px 1fr;
+  gap: 2rem;
   align-items: start;
 }
 
@@ -70,7 +80,6 @@ button:focus-visible {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   padding: 2rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .profile-panel {
@@ -78,23 +87,24 @@ button:focus-visible {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  position: sticky;
+  top: 4rem;
 }
 
 .profile-photo {
-  width: 180px; 
-  height: 180px; 
-  border-radius: 50%; 
-  overflow: hidden; 
-  border: 3px solid var(--accent);
-  box-shadow: 0 0 20px rgba(229, 57, 53, 0.3);
+  width: 168px;
+  height: 168px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--accent);
   margin-bottom: 1.5rem;
-  flex-shrink: 0; 
+  flex-shrink: 0;
 }
 
 .profile-photo img {
   width: 100%;
   height: 100%;
-  object-fit: cover; 
+  object-fit: cover;
 }
 
 .profile-info {
@@ -106,20 +116,20 @@ button:focus-visible {
 
 .profile-name {
   margin: 0;
-  font-size: 1.8rem;
-  letter-spacing: 0.05em;
+  font-size: 1.7rem;
+  letter-spacing: 0.03em;
 }
 
 .profile-role {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
 }
 
 .profile-text {
   margin: 0.4rem 0 0;
   font-size: 0.9rem;
-  color: var(--text-main);
+  color: var(--text-muted);
 }
 
 .profile-meta {
@@ -127,33 +137,23 @@ button:focus-visible {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.pill {
-  display: inline-block;
-  padding: 0.25rem 0.6rem;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
-  color: var(--accent-soft);
-  background: rgba(229, 57, 53, 0.06);
-}
-
-.profile-meta span {
-  display: inline-block;
   margin-top: 0.6rem;
-  padding: 0.25rem 0.6rem;
+}
+
+/* Shared chip look for pills / meta / sidebar tags */
+.pill,
+.profile-meta span,
+.sidebar-list li {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
   color: var(--accent-soft);
+  background: var(--accent-dim);
 }
 
 .profile-links {
@@ -161,65 +161,72 @@ button:focus-visible {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.8rem;
+  gap: 0.6rem;
 }
 
-.profile-links a {
+.profile-links a,
+.sidebar-links a {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   text-decoration: none;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  padding: 0.4rem 0.75rem;
-  border-radius: 999px;
+  letter-spacing: 0.12em;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
   border: 1px solid var(--border);
   color: var(--text-main);
-  background: var(--panel-alt);
+  background: var(--elevate);
   display: inline-block;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s var(--ease-out);
 }
 
-.profile-links a:hover {
+.profile-links a:hover,
+.sidebar-links a:hover {
   background: var(--accent);
   border-color: var(--accent);
-  color: #050505;
+  color: #ffffff;
 }
 
-.profile-links a:active {
+.profile-links a:active,
+.sidebar-links a:active {
   transform: scale(0.96);
 }
 
+/* ============ WRITEUPS LIST ============ */
+
 .writeups-panel {
-  background: var(--panel-alt);
+  background: var(--panel);
 }
 
 .writeups-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .writeups-header h2 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.16em;
 }
 
 .tag {
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
-  font-size: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--accent-dim);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   color: var(--accent-soft);
 }
 
 .writeups-subtitle {
-  margin: 0 0 1rem;
+  margin: 0 0 1.4rem;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
@@ -227,37 +234,57 @@ button:focus-visible {
 .writeups-list {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.7rem;
 }
 
 .post-card {
+  position: relative;
   display: block;
-  padding: 0.9rem 1rem;
-  border-radius: 10px;
-  background: #131313;
-  border: 1px solid #222;
+  padding: 1rem 1.15rem 1rem 1.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
   text-decoration: none;
   color: var(--text-main);
-  transition: border-color 0.12s ease, transform 0.12s var(--ease-out), box-shadow 0.12s ease;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s var(--ease-out), background 0.15s ease;
+}
+
+/* Left rail reveals on hover as interaction feedback */
+.post-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.18s var(--ease-out);
 }
 
 .post-card:hover {
-  border-color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--elevate);
   transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.7);
+}
+
+.post-card:hover::before {
+  transform: scaleY(1);
 }
 
 .post-card:active {
-  transform: translateY(-2px) scale(0.98);
+  transform: translateY(-1px) scale(0.99);
 }
 
 .post-meta {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  margin-bottom: 0.3rem;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.35rem;
 }
 
 .post-title {
@@ -267,7 +294,7 @@ button:focus-visible {
 }
 
 .post-tags {
-  margin-top: 0.5rem;
+  margin-top: 0.6rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
@@ -275,13 +302,13 @@ button:focus-visible {
 
 .post-tags span {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   letter-spacing: 0.04em;
-  color: var(--accent-soft);
+  color: var(--text-muted);
   border: 1px solid var(--border);
-  background: rgba(255, 112, 67, 0.06);
-  border-radius: 999px;
-  padding: 0.15rem 0.55rem;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 0.18rem 0.55rem;
 }
 
 @media (max-width: 800px) {
@@ -289,26 +316,30 @@ button:focus-visible {
     grid-template-columns: 1fr;
     padding: 2rem 1rem;
   }
+  .profile-panel {
+    position: static;
+  }
 }
+
+/* ============ WRITEUP PAGE ============ */
 
 .post-layout {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  background: radial-gradient(circle at top, #181818 0, #050505 55%, #000 100%);
+  background: var(--bg);
   color: var(--text-main);
 }
 
 .post-sidebar {
-  padding: 5rem 1.6rem 2rem; 
-  border-right: 1px solid #202020;
-  background: #05070b;
+  padding: 4rem 1.6rem 2rem;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
   position: sticky;
   top: 0;
   align-self: flex-start;
   height: 100vh;
   overflow-y: auto;
-  
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -316,11 +347,11 @@ button:focus-visible {
 }
 
 .sidebar-avatar {
-  width: 140px;  
-  height: 140px; 
+  width: 132px;
+  height: 132px;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid var(--accent);
+  border: 2px solid var(--accent);
   margin-bottom: 1.2rem;
 }
 .sidebar-avatar img {
@@ -329,26 +360,14 @@ button:focus-visible {
   object-fit: cover;
 }
 
-.post-section img {
-  max-width: 100%;
-  max-height: 600px;
-  height: auto;
-  object-fit: contain;
-  display: block;
-  margin: 1rem auto;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #0a0a0a;
-  padding: 6px;
-}
 .sidebar-name {
   margin: 0;
-  font-size: 1.4rem; 
+  font-size: 1.35rem;
 }
 
 .sidebar-role {
   margin: 0.2rem 0 1.5rem;
-  font-size: 0.95rem; 
+  font-size: 0.9rem;
   color: var(--text-muted);
 }
 
@@ -357,58 +376,17 @@ button:focus-visible {
   list-style: none;
   padding: 0;
   margin: 0 0 1.5rem;
-  font-size: 1rem;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
 }
-.sidebar-list li {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--accent-soft);
-  border: 1px solid var(--accent);
-  background: rgba(229, 57, 53, 0.06);
-  border-radius: 999px;
-  padding: 0.25rem 0.6rem;
-}
-
-.sidebar-links li {
-  margin-bottom: 0.25rem;
-}
-
-.sidebar-links a {
-  color: var(--text-main);
-  text-decoration: none;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--panel-alt);
-  display: inline-block;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s var(--ease-out);
-}
-
-.sidebar-links a:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #050505;
-}
-
-.sidebar-links a:active {
-  transform: scale(0.96);
-}
 
 .back-home {
   margin-top: 1.4rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-muted);
@@ -416,6 +394,7 @@ button:focus-visible {
   border-top: 1px solid var(--border);
   padding-top: 1.2rem;
   width: 100%;
+  transition: color 0.15s ease;
 }
 
 .back-home:hover {
@@ -423,15 +402,19 @@ button:focus-visible {
 }
 
 .post-main {
-  padding: 2rem 2.5rem;
+  padding: 3rem 3rem;
+  max-width: 900px;
 }
+
 .post-header {
   margin-bottom: 1.5rem;
 }
 
 .post-breadcrumb {
-  margin: 0 0 0.4rem;
-  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 
@@ -439,6 +422,7 @@ button:focus-visible {
   color: var(--text-muted);
   text-decoration: none;
   border-bottom: 1px solid transparent;
+  transition: color 0.15s ease;
 }
 
 .post-breadcrumb a:hover {
@@ -448,13 +432,14 @@ button:focus-visible {
 
 .post-title {
   margin: 0;
-  font-size: 1.7rem;
+  font-size: 1.8rem;
   letter-spacing: -0.02em;
 }
 
 .post-date {
-  margin: 0.6rem 0 0;
-  font-size: 0.85rem;
+  margin: 0.7rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
   color: var(--text-muted);
   display: flex;
   flex-wrap: wrap;
@@ -466,9 +451,23 @@ button:focus-visible {
   margin-bottom: 2rem;
 }
 
+/* Intro paragraph styled as a lead, not a heading */
+.post-section > h2:first-child {
+  font-family: var(--font-main);
+  font-weight: 400;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  border: none;
+  border-left: 2px solid var(--accent);
+  padding: 0 0 0 1.1rem;
+  margin: 0 0 1.6rem;
+  max-width: 72ch;
+}
+
 .post-section h2 {
-  margin: 0 0 0.7rem;
-  font-size: 1.05rem;
+  margin: 2.2rem 0 0.9rem;
+  font-size: 1.15rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
   scroll-margin-top: 1.5rem;
@@ -485,16 +484,16 @@ button:focus-visible {
 }
 
 .post-toc {
-  background: var(--panel-alt);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.2rem 1.5rem;
+  padding: 1.3rem 1.6rem;
   margin-bottom: 2rem;
 }
 
 .post-toc h2 {
-  margin: 0 0 0.7rem;
-  font-size: 0.85rem;
+  margin: 0 0 0.8rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-muted);
@@ -505,13 +504,13 @@ button:focus-visible {
 .post-index {
   padding-left: 1.2rem;
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   columns: 2;
-  column-gap: 2rem;
+  column-gap: 2.5rem;
 }
 
 .post-index li {
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
   break-inside: avoid;
 }
 
@@ -519,6 +518,7 @@ button:focus-visible {
   color: var(--text-main);
   text-decoration: none;
   border-bottom: 1px solid transparent;
+  transition: color 0.15s ease;
 }
 
 .post-index a:hover {
@@ -527,12 +527,13 @@ button:focus-visible {
 }
 
 .post-section pre {
-  background: #0c0c0c;
+  background: #0d0e11;
   border: 1px solid var(--border);
-  padding: 0.9rem 1.1rem;
-  border-radius: 10px;
+  border-left: 2px solid var(--accent);
+  padding: 0.95rem 1.15rem;
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
-  line-height: 1.55;
+  line-height: 1.6;
   overflow-x: auto;
 }
 
@@ -540,12 +541,27 @@ button:focus-visible {
   font-family: var(--font-mono);
 }
 
-.post-section p code {
-  background: var(--panel-alt);
+.post-section p code,
+.post-section li code {
+  background: var(--elevate);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 5px;
   padding: 0.1rem 0.4rem;
   font-size: 0.85em;
+  color: var(--accent-soft);
+}
+
+.post-section img {
+  max-width: 100%;
+  max-height: 620px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 1.4rem auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #0d0e11;
+  padding: 6px;
 }
 
 @media (max-width: 800px) {
@@ -554,32 +570,27 @@ button:focus-visible {
     flex-direction: column;
   }
 
-
   .post-sidebar {
     position: relative;
     height: auto;
     padding: 2rem 1.5rem 1.5rem;
-    background: transparent;
+    background: var(--panel);
     border-right: none;
-    border-bottom: 1px solid #202020;
-    
-  
+    border-bottom: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
   }
 
- 
   .sidebar-avatar {
     width: 90px;
     height: 90px;
-    margin: 0 0 1rem 0; 
+    margin: 0 0 1rem 0;
   }
 
-
   .sidebar-name {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
   }
 
   .sidebar-role {
@@ -587,20 +598,14 @@ button:focus-visible {
     font-size: 0.9rem;
   }
 
- 
   .sidebar-list,
   .sidebar-links {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem;
+    gap: 0.5rem;
     margin: 0 0 0.5rem 0;
   }
 
-
   .post-main {
-    padding: 1.5rem 1.2rem;
+    padding: 2rem 1.2rem;
   }
 
   .post-index {

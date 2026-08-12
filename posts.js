@@ -15,6 +15,30 @@ const posts = [
       url: ""
     },*/
     {
+      title: "HTB - Responder (User)",
+      date: "2026-08-12",
+      category: "HTB · Windows · Web",
+      tags: ["rfi", "responder", "ntlmv2", "winrm"],
+      url: "https://zerasedz-writeups-htb.vercel.app/writeups/responder.html"
+    },
+
+    {
+      title: "HTB - Crocodile (User)",
+      date: "2026-08-12",
+      category: "HTB · Linux · Web",
+      tags: ["ftp", "gobuster", "web"],
+      url: "https://zerasedz-writeups-htb.vercel.app/writeups/crocodile.html"
+    },
+
+    {
+      title: "HTB - Sequel (User)",
+      date: "2026-08-12",
+      category: "HTB · Linux · Database",
+      tags: ["mysql", "mariadb", "enum"],
+      url: "https://zerasedz-writeups-htb.vercel.app/writeups/sequel.html"
+    },
+
+    {
       title: "HTB - Skyfall (User & Root)",
       date: "2026-07-08",
       category: "HTB · Linux · Web",
