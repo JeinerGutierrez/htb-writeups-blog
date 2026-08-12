@@ -402,8 +402,10 @@ button:focus-visible {
 }
 
 .post-main {
-  padding: 3rem 3rem;
-  max-width: 900px;
+  padding: 3rem 3.25rem 4rem;
+  max-width: 1080px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .post-header {
@@ -462,7 +464,7 @@ button:focus-visible {
   border-left: 2px solid var(--accent);
   padding: 0 0 0 1.1rem;
   margin: 0 0 1.6rem;
-  max-width: 72ch;
+  max-width: none;
 }
 
 .post-section h2 {
@@ -475,7 +477,7 @@ button:focus-visible {
 
 .post-section p,
 .post-section li {
-  max-width: 72ch;
+  max-width: none;
   color: var(--text-main);
 }
 
