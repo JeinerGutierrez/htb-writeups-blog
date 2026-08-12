@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sequel HTB - Writeup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Writeup de Sequel (HackTheBox): enumeración de un servicio MariaDB expuesto en el puerto 3306, acceso como root sin contraseña y lectura de la flag directamente desde la base de datos." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="../img/avatar.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css?v=3" />
+</head>
+<body>
+  <div class="post-layout">
+    <aside class="post-sidebar">
+      <div class="sidebar-avatar">
+        <img src="../img/avatar.png" alt="Avatar de ZerasedZ" />
+      </div>
+      <h2 class="sidebar-name">ZerasedZ</h2>
+      <p class="sidebar-role">HTB - Offensive Security</p>
+
+      <ul class="sidebar-list">
+        <li>HTB</li>
+        <li>Linux · Database</li>
+      </ul>
+
+      <ul class="sidebar-links">
+        <li><a href="https://profile.hackthebox.com/profile/019d4be4-ec1e-706b-9196-b4be2dab6db5">HTB</a></li>
+        <li><a href="https://twitter.com">Twitter</a></li>
+        <li><a href="https://github.com/JeinerGutierrez">GitHub</a></li>
+      </ul>
+
+      <a class="back-home" href="../index.html">&larr; Volver a Writeups</a>
+    </aside>
+
+    <main class="post-main">
+      <header class="post-header">
+        <p class="post-breadcrumb"><a href="../index.html">Home</a> / Sequel HTB - Writeup</p>
+        <h1 class="post-title">Sequel HTB - Writeup</h1>
+        <p class="post-date">Aug 12, 2026 · <span class="pill">Linux</span> <span class="pill">Database</span> <span class="pill">Very Easy</span></p>
+      </header>
+
+      <nav class="post-toc" aria-label="Contenido del writeup">
+        <h2>En este writeup</h2>
+        <ol class="post-index">
+          <li><a href="#enumeracion">1. Enumeración inicial</a></li>
+          <li><a href="#acceso-mysql">2. Acceso a la base de datos</a></li>
+          <li><a href="#enumeracion-db">3. Enumerando bases de datos y tablas</a></li>
+          <li><a href="#flag">4. Obteniendo la flag</a></li>
+          <li><a href="#conclusion">5. Conclusión</a></li>
+        </ol>
+      </nav>
+
+      <section class="post-section">
+        <h2>El día de hoy vamos a resolver la máquina Sequel de HackTheBox. Es una máquina Linux - Very Easy que gira por completo alrededor de un servicio de base de datos MariaDB expuesto a la red. La idea es entender por qué exponer un motor de base de datos sin una contraseña fuerte (o directamente sin contraseña) es un riesgo crítico: con solo conectarnos como root podemos leer toda la información que guarda, incluida la flag.</h2>
+        <img src="sequel/img-machine-logo.png" alt="Ficha de la máquina Sequel en HackTheBox, clasificada como Linux - Very Easy" />
+
+        <h2 id="enumeracion">1. Enumeración inicial</h2>
+        <p>Como siempre, arrancamos con un escaneo con nmap. En esta máquina el único servicio interesante vive en el puerto <code>3306</code> (MySQL/MariaDB), así que lanzamos directamente un escaneo de versión sobre ese puerto:</p>
+        <pre><code>nmap -Pn -sCV -p3306 10.129.95.232</code></pre>
+        <img src="sequel/img-nmap.png" alt="Resultado de nmap sobre el puerto 3306 mostrando un servicio MySQL con versión 5.5.5-10.3.27-MariaDB y el auth plugin mysql_native_password" />
+        <p>El escaneo nos confirma que en el puerto <code>3306</code> corre un <strong>MariaDB 10.3.27</strong> (Debian 10). Nmap incluso nos regala información del handshake: protocolo 10, el <em>auth plugin</em> <code>mysql_native_password</code> y varias capabilities del servidor. Un motor de base de datos expuesto directamente a la red ya es una señal de alarma: el siguiente paso lógico es intentar conectarnos.</p>
+
+        <h2 id="acceso-mysql">2. Acceso a la base de datos</h2>
+        <p>Antes de conectarnos, revisamos rápidamente las opciones del cliente <code>mysql</code> para recordar la sintaxis y las flags disponibles (host, usuario, gestión de SSL, etc.):</p>
+        <pre><code>mysql --help</code></pre>
+        <img src="sequel/img-mysqlhelp.png" alt="Salida de mysql --help mostrando la versión 11.8.6-MariaDB del cliente y las opciones disponibles como --defaults-file y --no-defaults" />
+        <p>Con la sintaxis clara, intentamos conectarnos como el usuario <code>root</code> sin especificar contraseña. Añadimos la flag <code>--skip-ssl</code> para evitar problemas de negociación TLS entre nuestro cliente moderno y el servidor MariaDB de la máquina:</p>
+        <pre><code>mysql -h 10.129.95.232 -u root --skip-ssl</code></pre>
+        <img src="sequel/img-accesoamysql.png" alt="Conexión exitosa al monitor de MariaDB como root sin contraseña, mostrando el prompt MariaDB [(none)]>" />
+        <p>Y entramos sin problema. El servidor nos recibe con el prompt <code>MariaDB [(none)]&gt;</code>: el usuario <code>root</code> de la base de datos no tiene contraseña configurada, así que tenemos control total del motor sin necesidad de credenciales ni exploits. Esta es la vulnerabilidad central de la máquina.</p>
+
+        <h2 id="enumeracion-db">3. Enumerando bases de datos y tablas</h2>
+        <p>Ya dentro del monitor de MariaDB, lo primero es listar todas las bases de datos disponibles:</p>
+        <pre><code>show databases;</code></pre>
+        <img src="sequel/img-verdatabases.png" alt="Salida de show databases mostrando las bases htb, information_schema, mysql y performance_schema" />
+        <p>Además de las bases de datos por defecto (<code>information_schema</code>, <code>mysql</code> y <code>performance_schema</code>), aparece una base personalizada llamada <code>htb</code>. Esa es claramente la que nos interesa. La seleccionamos y listamos sus tablas:</p>
+        <pre><code>use htb;
+show tables;</code></pre>
+        <img src="sequel/img-vertablas.png" alt="Tras cambiar a la base htb, show tables muestra dos tablas: config y users" />
+        <p>La base <code>htb</code> contiene dos tablas: <code>config</code> y <code>users</code>. El nombre <code>config</code> promete guardar parámetros de configuración de la aplicación, un lugar típico donde acaban quedando datos sensibles.</p>
+
+        <h2 id="flag">4. Obteniendo la flag</h2>
+        <p>Volcamos el contenido completo de la tabla <code>config</code> para ver qué guarda:</p>
+        <pre><code>SELECT * FROM config;</code></pre>
+        <img src="sequel/img-flag.png" alt="SELECT * FROM config mostrando varios parámetros de configuración, entre ellos una fila con name flag y su valor hash" />
+        <p>Entre los parámetros de configuración (<code>timeout</code>, <code>security</code>, <code>auto_logon</code>, <code>max_size</code>, <code>enable_uploads</code>, <code>authentication_method</code>) aparece una fila con el nombre <code>flag</code> y su valor correspondiente. Copiamos ese hash y lo enviamos a HackTheBox para completar la máquina.</p>
+
+        <h2 id="conclusion">5. Conclusión</h2>
+        <p>Sequel es una máquina muy sencilla pero con una lección importante detrás: nunca se debe exponer un servicio de base de datos directamente a la red, y mucho menos con el usuario <code>root</code> sin contraseña. Todo el ataque se resume en enumerar el puerto <code>3306</code>, conectarnos con el cliente <code>mysql</code> y leer la información con simples consultas SQL, sin necesidad de exploits ni de escalada de privilegios. Es un recordatorio de que gran parte de la seguridad empieza por lo básico: autenticación fuerte y no exponer servicios internos al exterior.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

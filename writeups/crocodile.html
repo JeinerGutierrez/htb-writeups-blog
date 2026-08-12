@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Crocodile HTB - Writeup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Writeup de Crocodile (HackTheBox): FTP anónimo con listas de usuarios y contraseñas, descubrimiento de un panel de login por fuerza de directorios y acceso al dashboard para obtener la flag." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="../img/avatar.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css?v=3" />
+</head>
+<body>
+  <div class="post-layout">
+    <aside class="post-sidebar">
+      <div class="sidebar-avatar">
+        <img src="../img/avatar.png" alt="Avatar de ZerasedZ" />
+      </div>
+      <h2 class="sidebar-name">ZerasedZ</h2>
+      <p class="sidebar-role">HTB - Offensive Security</p>
+
+      <ul class="sidebar-list">
+        <li>HTB</li>
+        <li>Linux · Web</li>
+      </ul>
+
+      <ul class="sidebar-links">
+        <li><a href="https://profile.hackthebox.com/profile/019d4be4-ec1e-706b-9196-b4be2dab6db5">HTB</a></li>
+        <li><a href="https://twitter.com">Twitter</a></li>
+        <li><a href="https://github.com/JeinerGutierrez">GitHub</a></li>
+      </ul>
+
+      <a class="back-home" href="../index.html">&larr; Volver a Writeups</a>
+    </aside>
+
+    <main class="post-main">
+      <header class="post-header">
+        <p class="post-breadcrumb"><a href="../index.html">Home</a> / Crocodile HTB - Writeup</p>
+        <h1 class="post-title">Crocodile HTB - Writeup</h1>
+        <p class="post-date">Aug 12, 2026 · <span class="pill">Linux</span> <span class="pill">Web</span> <span class="pill">Very Easy</span></p>
+      </header>
+
+      <nav class="post-toc" aria-label="Contenido del writeup">
+        <h2>En este writeup</h2>
+        <ol class="post-index">
+          <li><a href="#enumeracion">1. Enumeración inicial</a></li>
+          <li><a href="#ftp">2. FTP anónimo: fuga de credenciales</a></li>
+          <li><a href="#lectura">3. Leyendo usuarios y contraseñas</a></li>
+          <li><a href="#web">4. Reconocimiento web</a></li>
+          <li><a href="#gobuster">5. Fuzzing de directorios con gobuster</a></li>
+          <li><a href="#login">6. Acceso al panel y la flag</a></li>
+          <li><a href="#conclusion">7. Conclusión</a></li>
+        </ol>
+      </nav>
+
+      <section class="post-section">
+        <h2>El día de hoy vamos a resolver la máquina Crocodile de HackTheBox. Es una máquina Linux - Very Easy que combina dos vulnerabilidades muy comunes en el mundo real: un servidor FTP con acceso anónimo que expone archivos sensibles, y un panel de administración web protegido por credenciales que precisamente están en esos archivos. La cadena consiste en enumerar el FTP, recuperar una lista de usuarios y contraseñas, descubrir el panel de login con fuzzing de directorios y entrar para leer la flag.</h2>
+        <img src="crocodile/img-logomachine.png" alt="Ficha de la máquina Crocodile en HackTheBox, clasificada como Linux - Very Easy" />
+
+        <h2 id="enumeracion">1. Enumeración inicial</h2>
+        <p>Como siempre, empezamos con un escaneo completo de puertos y detección de versiones y scripts con nmap:</p>
+        <pre><code>sudo nmap -p- -sV -sC -T5 --min-rate 3000 -Pn 10.129.1.15</code></pre>
+        <img src="crocodile/img-nmap.png" alt="Resultado de nmap mostrando el puerto 21 con vsFTPd 3.0.3 y login anónimo permitido, y el puerto 80 con Apache 2.4.41" />
+        <p>El escaneo nos revela dos puertos abiertos:</p>
+        <pre><code>21/tcp open  ftp     vsftpd 3.0.3
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))</code></pre>
+        <p>Lo más interesante es que el script <code>ftp-anon</code> de nmap nos avisa de dos cosas clave: el <strong>login anónimo está permitido</strong> (<code>Anonymous FTP login allowed</code>) y ya lista dos archivos que hay en el servidor: <code>allowed.userlist</code> y <code>allowed.userlist.passwd</code>. Los nombres lo dicen todo: una lista de usuarios y sus contraseñas.</p>
+
+        <h2 id="ftp">2. FTP anónimo: fuga de credenciales</h2>
+        <p>Nos conectamos al servicio FTP usando el usuario <code>anonymous</code> (sin contraseña):</p>
+        <pre><code>ftp 10.129.1.15</code></pre>
+        <img src="crocodile/img-ftplogin.png" alt="Conexión FTP a 10.129.1.15 iniciando sesión como anonymous con el mensaje 230 Login successful" />
+        <p>El servidor nos da un <code>230 Login successful</code>: estamos dentro como usuario anónimo. Listamos el contenido con <code>ls</code> y descargamos los dos archivos con <code>get</code>. Primero la lista de usuarios:</p>
+        <pre><code>ls
+get allowed.userlist</code></pre>
+        <img src="crocodile/img-descargadeusers.png" alt="Listado del FTP mostrando allowed.userlist y allowed.userlist.passwd, y la descarga de allowed.userlist con get" />
+        <p>Y luego el archivo de contraseñas:</p>
+        <pre><code>get allowed.userlist.passwd</code></pre>
+        <img src="crocodile/img.ftppassw.png" alt="Descarga de allowed.userlist.passwd desde el FTP con get, transferencia completa de 62 bytes" />
+        <p>Ambos archivos se descargan a nuestra máquina sin ningún problema. Ya tenemos en local la lista de usuarios y la de contraseñas.</p>
+
+        <h2 id="lectura">3. Leyendo usuarios y contraseñas</h2>
+        <p>Revisamos el contenido de la lista de usuarios:</p>
+        <pre><code>cat allowed.userlist</code></pre>
+        <img src="crocodile/img-users.png" alt="Contenido de allowed.userlist mostrando los usuarios aron, pwnmeow, egotisticalsw y admin" />
+        <p>Tenemos cuatro usuarios: <code>aron</code>, <code>pwnmeow</code>, <code>egotisticalsw</code> y <code>admin</code>. Ahora las contraseñas:</p>
+        <pre><code>cat allowed.userlist.passwd</code></pre>
+        <img src="crocodile/img-passwd.png" alt="Contenido de allowed.userlist.passwd mostrando las contraseñas root, Supersecretpassword1, @BaASD&9032123sADS y rKXM59ESxesUFHAd" />
+        <p>Y cuatro contraseñas: <code>root</code>, <code>Supersecretpassword1</code>, <code>@BaASD&amp;9032123sADS</code> y <code>rKXM59ESxesUFHAd</code>. Guardamos estas credenciales; muy probablemente sirvan para algún panel de autenticación en el servicio web.</p>
+
+        <h2 id="web">4. Reconocimiento web</h2>
+        <p>Pasamos al puerto 80. Al entrar por el navegador nos encontramos con una plantilla corporativa genérica ("Smash - Bootstrap Business Template"), sin funcionalidad real aparente:</p>
+        <img src="crocodile/img-web.png" alt="Landing page de Crocodile en el puerto 80 con la plantilla Smash - Business is Now Digital" />
+        <p>La landing en sí no ofrece un punto de entrada evidente, así que el siguiente paso es buscar rutas y paneles ocultos mediante fuzzing de directorios.</p>
+
+        <h2 id="gobuster">5. Fuzzing de directorios con gobuster</h2>
+        <p>Lanzamos un descubrimiento de contenido con gobuster, incluyendo la extensión <code>.php</code> ya que el servidor corre Apache/PHP:</p>
+        <pre><code>gobuster dir -u http://10.129.1.15 -w /usr/share/wordlists/seclists/Discovery/Web-Content/DirBuster-2007_directory-list-2.3-medium.txt -x php</code></pre>
+        <img src="crocodile/img-gobuster.png" alt="Salida de gobuster mostrando rutas encontradas como /login.php, /logout.php, /config.php, /dashboard y /assets" />
+        <p>Entre las rutas descubiertas destacan varias interesantes: <code>/login.php</code> (200), <code>/logout.php</code> (302), <code>/config.php</code> (200) y un directorio <code>/dashboard</code>. La ruta <code>/login.php</code> es justo lo que buscábamos: un panel de autenticación donde probar las credenciales que sacamos del FTP.</p>
+
+        <h2 id="login">6. Acceso al panel y la flag</h2>
+        <p>Navegamos a <code>http://10.129.1.15/login.php</code> y nos encontramos con un formulario de login ("Please sign in"):</p>
+        <img src="crocodile/img-login.png" alt="Formulario de login en login.php con campos de usuario y contraseña bajo el título Please sign in" />
+        <p>Probamos las credenciales del FTP. La combinación válida es el usuario <code>admin</code> con la contraseña <code>rKXM59ESxesUFHAd</code>. Al iniciar sesión nos redirige al dashboard "Server Manager", donde la flag se muestra directamente en la parte superior:</p>
+        <img src="crocodile/img-flag.png" alt="Dashboard Server Manager tras iniciar sesión como admin, mostrando el mensaje Here is your flag con el hash de la flag" />
+        <p>Con eso completamos la máquina: el propio panel nos entrega la flag (<code>Here is your flag</code>) nada más autenticarnos.</p>
+
+        <h2 id="conclusion">7. Conclusión</h2>
+        <p>Crocodile es una máquina muy sencilla pero didáctica: nos enseña cómo dos malas configuraciones aparentemente pequeñas se combinan en una cadena de compromiso completa. Por un lado, un servidor FTP con acceso anónimo que expone archivos sensibles; por otro, un panel de administración que reutiliza exactamente esas credenciales filtradas. La lección es clara: nunca habilitar acceso anónimo a FTP con archivos internos dentro, y jamás almacenar usuarios y contraseñas en texto plano en un servicio accesible. La enumeración cuidadosa (FTP + fuzzing web) fue todo lo que necesitamos para encadenar ambos fallos hasta la flag.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
